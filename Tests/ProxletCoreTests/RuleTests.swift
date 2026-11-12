@@ -39,6 +39,62 @@ final class RuleTests: ProxletTestCase {
         XCTAssertNil(RuleStore.match(method: "GET", url: "https://x/1"))
     }
 
+    func testCreationDatesRoundTrip() throws {
+        let created = Date(timeIntervalSince1970: 1_800_000_000)
+        try RuleStore.save(MockRule(id: "dated", urlPattern: "https://x/*", createdAt: created))
+        XCTAssertEqual(RuleStore.load().first { $0.id == "dated" }?.createdAt, created)
+        try #"{"id":"old","urlPattern":"https://y/*"}"#.write(
+            to: Paths.rules.appendingPathComponent("old.json"), atomically: true, encoding: .utf8)
+        XCTAssertNil(RuleStore.load().first { $0.id == "old" }?.createdAt)
+        let imported = try MapLocalArchive.importRules(MapLocalArchive.export(RuleStore.load()))
+        XCTAssertTrue(imported.allSatisfy { $0.createdAt != nil })
+
+        var meta = ScriptMeta()
+        meta.created = created
+        XCTAssertEqual(ScriptMeta.parse(meta.render(code: "")).0.created, created)
+        XCTAssertNil(ScriptMeta.parse(ScriptMeta().render(code: "")).0.created)
+        let file = try ScriptStore.create(fileName: "s.js", meta: ScriptMeta(), code: "")
+        XCTAssertNotNil(ScriptStore.list().first { $0.fileName == file }?.meta.created)
+    }
+
+    func testDeviceRulesWinForTheirSimulatorOnly() throws {
+        let simA = "61376D3D-F1AF-45F2-90D5-8AE58DF2B60C", simB = "C9842430-4593-46AF-AB67-9225FD361042"
+        XCTAssertNil(try MockRule.devices([]))
+        XCTAssertEqual(try MockRule.devices([simA.lowercased()]), [simA])
+        XCTAssertThrowsError(try MockRule.devices(["abc"]))
+
+        // "a-general" sorts before "b-sim", so only the device preference can pick the device rule.
+        try RuleStore.save(MockRule(id: "a-general", urlPattern: "https://x/latest*", status: 200))
+        try RuleStore.save(MockRule(id: "b-sim", urlPattern: "https://x/latest*", status: 426, devices: [simA]))
+        try RuleStore.save(MockRule(id: "c-empty", urlPattern: "https://x/empty", status: 201, devices: []))
+        XCTAssertEqual(RuleStore.match(method: "GET", url: "https://x/latest?os=ios", device: simA.lowercased())?.id, "b-sim")
+        XCTAssertEqual(RuleStore.match(method: "GET", url: "https://x/latest?os=ios", device: simB)?.id, "a-general")
+        XCTAssertEqual(RuleStore.match(method: "GET", url: "https://x/latest?os=ios")?.id, "a-general")
+        XCTAssertEqual(RuleStore.match(method: "GET", url: "https://x/empty", device: simB)?.status, 201)
+        XCTAssertFalse(MockRule(urlPattern: "*", devices: [simA]).matches(method: "GET", url: "https://x"))
+        XCTAssertNil(RuleStore.load().first { $0.id == "a-general" }?.devices)
+        XCTAssertEqual(RuleStore.load().first { $0.id == "b-sim" }?.devices, [simA])
+    }
+
+    func testNetworkClientRulesMatchTheExactIPOnly() throws {
+        let phone = "192.168.1.20", sim = "61376D3D-F1AF-45F2-90D5-8AE58DF2B60C"
+        XCTAssertEqual(try MockRule.devices([" \(phone) ", "fe80::1", sim.lowercased()]), [phone, "fe80::1", sim])
+        for bad in ["192.168.1.300", "phone", "192.168.1"] {
+            XCTAssertThrowsError(try MockRule.devices([phone, bad]), bad) { error in
+                XCTAssertTrue(error.localizedDescription.contains(bad), "error names the rejected ID")
+            }
+        }
+
+        try RuleStore.save(MockRule(id: "a-general", urlPattern: "https://x/profile", status: 200))
+        try RuleStore.save(MockRule(id: "b-phone", urlPattern: "https://x/profile", status: 299, devices: [phone]))
+        func winner(_ device: String?) -> String? { RuleStore.match(method: "GET", url: "https://x/profile", device: device)?.id }
+        XCTAssertEqual(winner(phone), "b-phone")
+        // A prefix of the IP, another phone, a simulator and an unknown client all get the general rule.
+        for other in ["192.168.1.2", "192.168.1.201", "192.168.1.21", sim, nil] as [String?] {
+            XCTAssertEqual(winner(other), "a-general", other ?? "nil")
+        }
+    }
+
     func testHandNamedRuleFileIsUpdatedAndDeletedInPlace() throws {
         let file = Paths.rules.appendingPathComponent("login-mock.json")
         try #"{"id":"abc","urlPattern":"https://login/*","status":401}"#.write(to: file, atomically: true, encoding: .utf8)
@@ -144,7 +200,7 @@ extension RuleTests {
         let encoded = String(decoding: try RuleStore.encoder.encode(MockRule(urlPattern: "https://a/*")), as: UTF8.self)
         XCTAssertFalse(encoded.contains("delayMs"), "no delay, no key")
         let delayed = try RuleStore.encoder.encode(MockRule(urlPattern: "https://a/*", delayMs: 1500))
-        XCTAssertEqual(try JSONDecoder().decode(MockRule.self, from: delayed).delayMs, 1500)
+        XCTAssertEqual(try RuleStore.decoder.decode(MockRule.self, from: delayed).delayMs, 1500)
     }
 }
 

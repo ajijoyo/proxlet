@@ -11,7 +11,7 @@ import Foundation
 /// Pure helpers behind the MCP tools (`filter_flows`, `export_flow_curl`, `include_paths`, `export_flows`).
 public enum FlowQuery {
     public static let keys = ["url", "queryString", "host", "method", "statusCode", "requestHeader", "responseHeader", "requestBody",
-                              "responseBody"]
+                              "responseBody", "device"]
     public static let matchings = ["contains", "notContains", "startWith", "endWith", "equal", "notEqual", "regex", "wildcard"]
 
     public struct Filter: Equatable, Sendable {
@@ -74,6 +74,7 @@ public enum FlowQuery {
         case "requestHeader": headerText(flow.requestHeaders)
         case "responseHeader": headerText(flow.responseHeaders)
         case "requestBody": flow.requestBody
+        case "device": flow.device ?? ""
         default: flow.responseBody
         }
     }

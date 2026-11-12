@@ -19,7 +19,7 @@ struct FlowFilterPanel: View {
     static let keyLabels: [String: String] = [
         "url": "URL", "queryString": "Query String", "host": "Host", "method": "Method", "statusCode": "Status Code",
         "requestHeader": "Request Header", "responseHeader": "Response Header", "requestBody": "Request Body",
-        "responseBody": "Response Body",
+        "responseBody": "Response Body", "device": "Device (UDID or IP)",
     ]
     static let matchingLabels: [String: String] = [
         "contains": "Contains", "notContains": "Not Contains", "startWith": "Starts With", "endWith": "Ends With",

@@ -61,6 +61,7 @@ func findRule(_ id: String) throws -> MockRule {
 func summary(_ f: Flow) -> [String: Any] {
     ["id": f.id, "method": f.method, "url": f.url, "status": f.status, "duration_ms": f.durationMs,
      "started_at": ISO8601DateFormatter().string(from: f.startedAt), "client": f.app, "websocket": f.websocket,
+     "device": f.device ?? "", "device_name": f.device.flatMap { ProcessLookup.simulatorName(udid: $0) } ?? "",
      "map_local": f.mocked, "scripts": f.scripts]
 }
 
@@ -156,7 +157,7 @@ func listRules(_ a: Args) throws -> String {
     if type == "all" || type == "maplocal" {
         rules += RuleStore.load().map { r in
             ["id": r.id, "type": "maplocal", "name": r.name, "url": r.urlPattern, "method": r.method ?? "ANY",
-             "isEnabled": r.enabled, "isRegex": r.useRegex, "status_code": r.status]
+             "isEnabled": r.enabled, "isRegex": r.useRegex, "status_code": r.status, "devices": r.devices ?? []]
         }
     }
     if type == "all" || type == "scripting" {
@@ -175,7 +176,8 @@ func createMapLocal(_ a: Args) throws -> String {
                         urlPattern: FlowQuery.withSubpaths(try a.required("url"), a.bool("include_paths")),
                         status: a.int("status_code") ?? 200,
                         headers: contentType.isEmpty ? [:] : ["Content-Type": contentType],
-                        body: a.str("response_body") ?? "{}", bodyFile: try bodyFile(a), delayMs: try delay(a) ?? nil)
+                        body: a.str("response_body") ?? "{}", bodyFile: try bodyFile(a), delayMs: try delay(a) ?? nil,
+                        devices: try deviceIDs(a) ?? nil)
     try RuleStore.save(rule)
     return try json(rule)
 }
@@ -189,6 +191,7 @@ func createMapLocalFromFlow(_ a: Args) throws -> String {
     if let m = a.method("method") { rule.method = m }
     if let n = a.str("name") { rule.name = n }
     if let d = try delay(a) { rule.delayMs = d }
+    if let d = try deviceIDs(a) { rule.devices = d }
     rule.urlPattern = FlowQuery.withSubpaths(rule.urlPattern, a.bool("include_paths"))
     try RuleStore.save(rule)
     return try json(rule)
@@ -201,6 +204,13 @@ func delay(_ a: Args) throws -> Int?? {
         throw ToolError(message: "delay_ms must be 0...\(MockRule.maxDelayMs)")
     }
     return .some(ms == 0 ? nil : ms)
+}
+
+/// `device_ids`: `.none` when omitted, `.some(nil)` for [] (no limit).
+func deviceIDs(_ a: Args) throws -> [String]?? {
+    guard let raw = a.raw["device_ids"] else { return .none }
+    guard let ids = raw.arrayValue?.compactMap(\.stringValue) else { throw ToolError(message: "device_ids must be an array of UDIDs") }
+    do { return .some(try MockRule.devices(ids)) } catch { throw ToolError(message: error.localizedDescription) }
 }
 
 /// `response_body_file`: an existing file served as the body (binary allowed).
@@ -228,6 +238,7 @@ func updateMapLocal(_ a: Args) throws -> String {
     }
     if let file = try bodyFile(a) { rule.bodyFile = file }
     if let d = try delay(a) { rule.delayMs = d }
+    if let d = try deviceIDs(a) { rule.devices = d }
     try RuleStore.save(rule)
     return try json(rule)
 }

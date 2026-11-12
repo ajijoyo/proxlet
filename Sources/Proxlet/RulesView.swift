@@ -69,6 +69,7 @@ struct MapLocalView: View {
                             Text(rule.urlPattern).lineLimit(1).truncationMode(.middle)
                                 .font(rule.name.isEmpty ? .body : .caption).foregroundStyle(rule.name.isEmpty ? .primary : .secondary)
                         }
+                        ForEach(rule.devices ?? [], id: \.self) { DeviceBadge(id: $0) }
                         Spacer()
                         Button("Edit", systemImage: "pencil") { openWindow(id: "mapLocal", value: rule.id) }
                         .labelStyle(.iconOnly)

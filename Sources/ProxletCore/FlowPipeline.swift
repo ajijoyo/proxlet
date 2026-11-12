@@ -72,7 +72,7 @@ public final class FlowPipeline: @unchecked Sendable {
     public func handle(_ original: ProxyRequest) async -> ProxyResponse {
         let started = Date()
         if let local = LocalPages.response(for: original) { return local }
-        if mapLocalEnabled, let rule = RuleStore.match(method: original.method, url: original.url) {
+        if mapLocalEnabled, let rule = RuleStore.match(method: original.method, url: original.url, device: original.clientDevice) {
             if let delay = rule.delayMs, delay > 0 {
                 try? await Task.sleep(for: .milliseconds(min(delay, MockRule.maxDelayMs)))
             }

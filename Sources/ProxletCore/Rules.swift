@@ -25,6 +25,10 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
     public var bodyFile: String?
     /// Milliseconds to wait before answering; nil answers immediately.
     public var delayMs: Int?
+    /// Clients this rule is limited to (iOS simulator UDIDs or network client IPs); nil or empty matches every client.
+    public var devices: [String]?
+    /// When the rule was created; nil for rules saved before this was recorded.
+    public var createdAt: Date?
     /// File the rule was loaded from (not persisted); rule files may be named by hand, not only `<id>.json`.
     public var sourceFile: URL?
 
@@ -35,13 +39,13 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
     public static let methods = ["ANY", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
 
     enum CodingKeys: String, CodingKey {
-        case id, name, enabled, method, urlPattern, useRegex, status, headers, body, bodyFile, delayMs
+        case id, name, enabled, method, urlPattern, useRegex, status, headers, body, bodyFile, delayMs, createdAt, devices
     }
 
     public init(
         id: String = UUID().uuidString.lowercased(), name: String = "", enabled: Bool = true, method: String? = nil,
         urlPattern: String, useRegex: Bool = false, status: Int = 200, headers: [String: String] = [:],
-        body: String = "", bodyFile: String? = nil, delayMs: Int? = nil
+        body: String = "", bodyFile: String? = nil, delayMs: Int? = nil, createdAt: Date? = Date(), devices: [String]? = nil
     ) {
         self.id = id
         self.name = name
@@ -54,6 +58,8 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
         self.body = body
         self.bodyFile = bodyFile
         self.delayMs = delayMs
+        self.createdAt = createdAt
+        self.devices = devices
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,6 +75,8 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
         body = try c.decodeIfPresent(String.self, forKey: .body) ?? ""
         bodyFile = try c.decodeIfPresent(String.self, forKey: .bodyFile)
         delayMs = try c.decodeIfPresent(Int.self, forKey: .delayMs)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+        devices = try c.decodeIfPresent([String].self, forKey: .devices)
     }
 
     /// Rule replaying a captured flow's response for the same method + URL.
@@ -99,10 +107,32 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
         return rule
     }
 
-    public func matches(method: String, url: String) -> Bool {
+    /// True when the rule is limited to specific clients.
+    public var isDeviceSpecific: Bool { !(devices ?? []).isEmpty }
+
+    public func matches(method: String, url: String, device: String? = nil) -> Bool {
         guard enabled else { return false }
         if let m = self.method, !m.isEmpty, m.uppercased() != method.uppercased() { return false }
+        if isDeviceSpecific {
+            guard let device, devices?.contains(where: { $0.caseInsensitiveCompare(device) == .orderedSame }) == true else { return false }
+        }
         return Self.url(url, matches: urlPattern, regex: useRegex)
+    }
+
+    public struct InvalidDevice: LocalizedError {
+        public let id: String
+        public var errorDescription: String? { "\"\(id)\" is not a simulator UDID or an IP address" }
+    }
+
+    /// Validated client IDs: simulator UDIDs uppercased, IPs as given; an empty list means no limit (nil).
+    public static func devices(_ ids: [String]) throws -> [String]? {
+        guard !ids.isEmpty else { return nil }
+        return try ids.map { raw in
+            let id = raw.trimmingCharacters(in: .whitespaces)
+            if UUID(uuidString: id) != nil { return id.uppercased() }
+            guard AccessControl.isIP(id) else { throw InvalidDevice(id: raw) }
+            return id
+        }
     }
 
     /// Glob (`*`) or regex URL match; an invalid regex matches nothing.
@@ -137,22 +167,32 @@ public enum RuleStore {
         return files.filter { $0.pathExtension == "json" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .compactMap { url in
-                guard let data = try? Data(contentsOf: url), var rule = try? JSONDecoder().decode(MockRule.self, from: data)
+                guard let data = try? Data(contentsOf: url), var rule = try? decoder.decode(MockRule.self, from: data)
                 else { return nil }
                 rule.sourceFile = url
                 return rule
             }
     }
 
-    public static func match(method: String, url: String) -> MockRule? {
-        load().first { $0.matches(method: method, url: url) }
+    /// A rule limited to `device` wins over a general one, whatever the file order.
+    public static func match(method: String, url: String, device: String? = nil) -> MockRule? {
+        let rules = load()
+        return rules.first { $0.isDeviceSpecific && $0.matches(method: method, url: url, device: device) }
+            ?? rules.first { $0.matches(method: method, url: url, device: device) }
     }
 
     /// Pretty, stable JSON shared by rule files and Map Local exports.
     static let encoder: JSONEncoder = {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        enc.dateEncodingStrategy = .iso8601
         return enc
+    }()
+
+    static let decoder: JSONDecoder = {
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return dec
     }()
 
     /// Writes back to the file the rule came from, or `<id>.json` for new rules.

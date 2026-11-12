@@ -38,6 +38,7 @@ struct FlowDetailView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: Self.urlMaxHeight, alignment: .leading)
                 Text("\(flow.durationMs) ms").foregroundStyle(.secondary).monospacedDigit().fixedSize()
+                if let device = flow.device { DeviceBadge(id: device) }
                 Button("Map Local", systemImage: "wand.and.stars") {
                     if let id = model.mock(flow) { openWindow(id: "mapLocal", value: id) }
                 }

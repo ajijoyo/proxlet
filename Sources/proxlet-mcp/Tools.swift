@@ -28,6 +28,12 @@ let sslLists = SSLProxying.List.allCases.map(\.rawValue)
 let ruleTypes = ["maplocal", "scripting"]
 let toolNames = ["map_local", "scripting", "no_caching"]
 let filterKeys = FlowQuery.keys
+let deviceIDsProp: Value = .object([
+    "type": "array", "items": .object(["type": "string"]),
+    "description": .string("Limit the rule to these clients: iOS simulator UDIDs (device_id from Maestro list_devices) or the IP of a "
+        + "phone on the network (as shown by get_access_control). A rule for the requesting client wins over a rule without "
+        + "device_ids; [] removes the limit."),
+])
 let matchings = FlowQuery.matchings
 
 let tools: [Tool] = [
@@ -47,7 +53,7 @@ let tools: [Tool] = [
     Tool(name: "filter_flows",
          description: "Search recorded flows with one condition (key, matching, value) or a list of conditions joined by AND or OR.",
          inputSchema: schema([
-             "key": choice(filterKeys, "Field to test"),
+             "key": choice(filterKeys, "Field to test (device: the client's iOS simulator UDID, or its IP for a network client)"),
              "matching": choice(matchings, "How to compare (contains by default)"),
              "value": prop("string", "Text to compare with"),
              "case_sensitive": prop("boolean", "Compare with exact letter case (off by default)"),
@@ -104,6 +110,7 @@ let tools: [Tool] = [
                                         + "Without content_type its type comes from the file extension."),
              "include_paths": prop("boolean", "Also match everything below the URL (off by default)"),
              "delay_ms": prop("integer", "Wait this many milliseconds before answering, 0 to 60000 (0 by default)"),
+             "device_ids": deviceIDsProp,
          ], required: ["url"])),
     Tool(name: "create_map_local_from_flow",
          description: "Make a Map Local rule that answers with a recorded response (status, headers and body).",
@@ -114,6 +121,7 @@ let tools: [Tool] = [
              "name": prop("string", "Rule name shown in the app"),
              "include_paths": prop("boolean", "Also match everything below the URL (off by default)"),
              "delay_ms": prop("integer", "Wait this many milliseconds before answering, 0 to 60000 (0 by default)"),
+             "device_ids": deviceIDsProp,
          ], required: ["flow_id"])),
     Tool(name: "update_map_local",
          description: "Change a Map Local rule (ID from list_rules); fields you leave out stay as they are.",
@@ -128,6 +136,7 @@ let tools: [Tool] = [
              "response_body_file": prop("string", "Absolute path of a file to send as the body"),
              "include_paths": prop("boolean", "Also match everything below the URL"),
              "delay_ms": prop("integer", "Wait this many milliseconds before answering, 0 to 60000 (0 by default)"),
+             "device_ids": deviceIDsProp,
          ], required: ["id"])),
     Tool(name: "create_scripting_rule",
          description: "Add a JavaScript script that edits matching requests and responses. Use onRequest(req) / onResponse(req, res) "
