@@ -6,7 +6,7 @@ A native macOS HTTPS debugging proxy. Inspect traffic from your Mac, iOS simulat
 - Map Local: text or binary bodies (images, video, any file), optional response delay
 - Scripting: `onRequest` / `onResponse` in JavaScript
 - Read-only WebSocket capture
-- Advanced flow filter (URL, query string, method, status, headers, bodies; AND / OR)
+- Advanced flow filter (URL, query string, method, status, headers, bodies, device; AND / OR)
 - No Caching switch, device access control, image previews
 - Import/export: HAR, Charles `.chls`, Map Local files and rule trees, scripting `.config`
 - MCP server (`proxlet-mcp`) with 33 tools
@@ -77,6 +77,7 @@ Return a local response instead of calling the server.
 - **Select Binary File…** serves any file as the body (Content-Type from the extension when no header is set). **Remove Binary File** brings the text body back.
 - **Delay**: Immediately, 1–3 seconds, or a custom value in milliseconds.
 - URL patterns use `*` wildcards, or regex.
+- A rule can be limited to specific devices: an iOS simulator by UDID, or a phone by its IP. A rule for the requesting device wins over rules without devices. Set devices through MCP (`device_ids`); the rule list shows them as badges.
 
 ### Scripts
 JavaScript files that change requests and responses. Create one with right-click › **Add Script**, or **Scripts › New**.
@@ -127,7 +128,7 @@ claude mcp add proxlet -- /Applications/Proxlet.app/Contents/MacOS/proxlet-mcp
 | Switches & status | `get_proxy_status`, `toggle_recording`, `toggle_tool`, `toggle_no_caching`, `list_tool_status`, `set_system_proxy`, `get_system_proxy_status` |
 | Setup | `get_certificate_status`, `get_version`, `get_access_control`, `set_access_control_mode`, `allow_device`, `remove_device` |
 
-Example prompts: *"Show the last 4xx responses from api.example.com"*, *"Mock GET /v1/profile with a 500 and a 2-second delay"*, *"Enable SSL Proxying for \*.example.com"*.
+Example prompts: *"Show the last 4xx responses from api.example.com"*, *"Mock GET /v1/profile with a 500 and a 2-second delay"*, *"Mock GET /v1/profile only for the booted simulator"*, *"Enable SSL Proxying for \*.example.com"*.
 
 Changes made through MCP reach the running app within about 2 seconds.
 
