@@ -18,8 +18,10 @@ for size in 16 32 128 256 512; do
   sips -z $((size * 2)) $((size * 2)) build/AppIcon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
-# Version must match Paths.appVersion (ProxletCore/Paths.swift).
-cat > "$APP/Contents/Info.plist" <<'EOF'
+# Version comes from Paths.appVersion (ProxletCore/Paths.swift); the build number is the commit count.
+VERSION=$(sed -nE 's/.*appVersion = "([^"]+)".*/\1/p' Sources/ProxletCore/Paths.swift)
+BUILD=$(git rev-list --count HEAD 2>/dev/null || echo 1)
+cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -30,8 +32,8 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>Proxlet</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
+  <key>CFBundleVersion</key><string>$BUILD</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict>

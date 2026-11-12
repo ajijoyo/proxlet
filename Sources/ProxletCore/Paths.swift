@@ -11,6 +11,7 @@ import Foundation
 /// Shared on-disk state read by both the app and proxlet-mcp.
 public enum Paths {
     /// Keep in sync with CFBundleShortVersionString in make-app.sh.
+    /// The only place the version is set; make-app.sh copies it into Info.plist.
     public static let appVersion = "0.1.0"
 
     public static var root: URL = {

@@ -16,6 +16,7 @@ swift run Proxlet                             # run the app from .build (no bund
 claude mcp add proxlet -- /Applications/Proxlet.app/Contents/MacOS/proxlet-mcp
 ```
 
+- Version: change only `Paths.appVersion` (`ProxletCore/Paths.swift`); `make-app.sh` writes it to Info.plist with the commit count as build number. Tag releases `vX.Y.Z`.
 - Quit the running app before `./make-app.sh` (`osascript -e 'quit app "Proxlet"'`), then `open /Applications/Proxlet.app`.
 - `PROXLET_HOME=/some/dir` points app and MCP at a throwaway data dir instead of `~/Library/Application Support/Proxlet`. Tests override `Paths.root` themselves.
 - Manual check through the proxy: `curl -x http://127.0.0.1:9191 --cacert ~/Library/Application\ Support/Proxlet/ca.pem https://httpbin.org/get`.
