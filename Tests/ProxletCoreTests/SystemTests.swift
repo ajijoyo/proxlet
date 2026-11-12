@@ -133,6 +133,23 @@ final class SystemTests: ProxletTestCase {
         XCTAssertNil(ProcessLookup.appName(executablePath: "/usr/bin/curl"))
     }
 
+    func testSimulatorDeviceAndName() throws {
+        let app = "/Users/me/Library/Developer/CoreSimulator/Devices/c9842430-4593-46af-ab67-9225fd361042/data/Containers/"
+            + "Bundle/Application/2319E974-F000-4000-8000-000000000000/mamikos.app/mamikos"
+        XCTAssertEqual(ProcessLookup.simulatorDevice(executablePath: app), "C9842430-4593-46AF-AB67-9225FD361042")
+        XCTAssertEqual(ProcessLookup.appName(executablePath: app), "mamikos")
+        XCTAssertNil(ProcessLookup.simulatorDevice(executablePath: "/Applications/Slack.app/Contents/MacOS/Slack"))
+        XCTAssertNil(ProcessLookup.simulatorDevice(executablePath: "/x/CoreSimulator/Devices/not-a-uuid/a.app/a"))
+
+        let root = Paths.root.appendingPathComponent("sims")
+        let udid = "C9842430-4593-46AF-AB67-9225FD361042"
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(udid), withIntermediateDirectories: true)
+        let plist = try PropertyListSerialization.data(fromPropertyList: ["name": "iPhone 17 E2E-B"], format: .xml, options: 0)
+        try plist.write(to: root.appendingPathComponent(udid).appendingPathComponent("device.plist"))
+        XCTAssertEqual(ProcessLookup.simulatorName(udid: udid, root: root), "iPhone 17 E2E-B")
+        XCTAssertNil(ProcessLookup.simulatorName(udid: "61376D3D-F1AF-45F2-90D5-8AE58DF2B60C", root: root))
+    }
+
     func testSocketScanFindsOwnConnection() throws {
         // The runner must live inside an .app (e.g. Xcode.app) for its socket to resolve to an app name.
         try XCTSkipIf(ProcessLookup.appName(pid: getpid()) == nil, "test runner is not inside an .app bundle")
@@ -151,7 +168,7 @@ final class SystemTests: ProxletTestCase {
         let serverPort = Int(UInt16(bigEndian: addr.sin_port))
         let client = try RawSocket(port: serverPort)
         let found = ProcessLookup.scan(proxyPort: serverPort)
-        XCTAssertEqual(Set(found.values), [ProcessLookup.appName(pid: getpid())!])
+        XCTAssertEqual(Set(found.values.map(\.app)), [ProcessLookup.appName(pid: getpid())])
         XCTAssertNotNil(ProcessLookup.listener(port: serverPort), "listening socket owner")
         _ = client
     }

@@ -48,6 +48,21 @@ final class PipelineTests: ProxletTestCase {
         await upstream.stop()
     }
 
+    func testMapLocalPerSimulatorAndDeviceFilter() async throws {
+        let sim = "61376D3D-F1AF-45F2-90D5-8AE58DF2B60C"
+        try RuleStore.save(MockRule(id: "general", urlPattern: "https://api.example.com/v*", status: 200))
+        try RuleStore.save(MockRule(id: "sim", urlPattern: "https://api.example.com/v*", status: 426, devices: [sim]))
+        let pipeline = FlowPipeline(store: FlowStore())
+        let simRes = await pipeline.handle(ProxyRequest(method: "GET", url: "https://api.example.com/v1", headers: [], body: Data(),
+                                                        clientDevice: sim))
+        let otherRes = await get(pipeline, "https://api.example.com/v1")
+        XCTAssertEqual([simRes.status, otherRes.status], [426, 200])
+        let flows = FlowStore.load()
+        XCTAssertEqual(flows.map(\.device), [sim, nil])
+        XCTAssertEqual(flows.filter { FlowQuery.matches($0, .init(key: "device", matching: "equal", value: sim)) }.count, 1)
+        await pipeline.shutdown()
+    }
+
     func testScriptRunsOnTopOfMapLocal() async throws {
         try RuleStore.save(MockRule(id: "enc", urlPattern: "https://api.example.com/meta*", body: #"{"data":"cipher"}"#))
         try writeScript("decrypt.js", """

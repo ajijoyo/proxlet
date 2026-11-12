@@ -73,17 +73,21 @@ public final class ProxyServer: @unchecked Sendable {
     }
 }
 
-/// Looks up the local app behind a connection once, in the background; shared with its CONNECT tunnel.
+/// Looks up the client behind a connection once, in the background; shared with its CONNECT tunnel.
+/// Local apps resolve via libproc; a network client (phone) is identified by its IP.
 final class ClientApp: Sendable {
-    let task: Task<String?, Never>?
+    let task: Task<ProcessLookup.Client?, Never>?
 
     init(channel: Channel, proxyPort: Int) {
-        guard let remote = channel.remoteAddress, let ip = remote.ipAddress, let port = remote.port,
-              ip == "127.0.0.1" || ip == "::1" || ip == "::ffff:127.0.0.1" else {
+        guard let remote = channel.remoteAddress, let ip = remote.ipAddress, let port = remote.port else {
             task = nil
             return
         }
-        task = Task.detached(priority: .utility) { ProcessLookup.appName(clientPort: port, proxyPort: proxyPort) }
+        guard AccessControl.isLocal(ip) else {
+            task = Task { ProcessLookup.Client(app: nil, device: ip) }
+            return
+        }
+        task = Task.detached(priority: .utility) { ProcessLookup.client(clientPort: port, proxyPort: proxyPort) }
     }
 }
 
@@ -195,7 +199,9 @@ final class ProxyHandler: ChannelInboundHandler, RemovableChannelHandler {
         func record(_ status: Int, _ error: String?) {
             Task {
                 var req = request
-                req.clientApp = await app.task?.value
+                let client = await app.task?.value
+                req.clientApp = client?.app
+                req.clientDevice = client?.device
                 flows.store.append(Flow(request: req, response: ProxyResponse(status: status, headers: [], body: Data()),
                                         startedAt: started, mocked: false, error: error))
             }
@@ -290,7 +296,9 @@ final class ProxyHandler: ChannelInboundHandler, RemovableChannelHandler {
         let client = self.client
         promise.completeWithTask {
             var withApp = req
-            withApp.clientApp = await client.task?.value
+            let found = await client.task?.value
+            withApp.clientApp = found?.app
+            withApp.clientDevice = found?.device
             return await flows.handle(withApp)
         }
         promise.futureResult.whenSuccess { res in

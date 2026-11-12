@@ -11,14 +11,22 @@ import Foundation
 
 /// Finds which local app opened a connection to the proxy, via the kernel's socket table (libproc).
 public enum ProcessLookup {
+    /// Client process behind a socket: its outermost `.app` and, for iOS simulator apps, the simulator's UDID.
+    public struct Client: Sendable, Equatable {
+        public var app: String?
+        public var device: String?
+    }
+
     private static let lock = NSLock()
-    private static var cache: [Int: String] = [:]
+    private static var cache: [Int: Client] = [:]
+    private static let nameLock = NSLock()
+    private static var names: [String: String] = [:]
     private static var lastScan = Date.distantPast
     /// Ephemeral client ports get reused, so a cached mapping is trusted only briefly.
     static let cacheLifetime: TimeInterval = 1
 
-    /// App owning the client socket whose local port is `clientPort` and peer port is `proxyPort`.
-    public static func appName(clientPort: Int, proxyPort: Int) -> String? {
+    /// Client owning the socket whose local port is `clientPort` and peer port is `proxyPort`.
+    public static func client(clientPort: Int, proxyPort: Int) -> Client? {
         lock.lock()
         defer { lock.unlock() }
         if let hit = cache[clientPort], Date().timeIntervalSince(lastScan) < cacheLifetime { return hit }
@@ -30,13 +38,15 @@ public enum ProcessLookup {
         return cache[clientPort]
     }
 
-    /// local port → app name for all TCP sockets connected to `proxyPort`.
-    static func scan(proxyPort: Int) -> [Int: String] {
-        var result: [Int: String] = [:]
+    /// local port → client for all TCP sockets connected to `proxyPort`.
+    static func scan(proxyPort: Int) -> [Int: Client] {
+        var result: [Int: Client] = [:]
         for pid in allPIDs() {
-            for socket in tcpSockets(pid: pid) where socket.remote == proxyPort {
-                if let name = appName(pid: pid) { result[socket.local] = name }
-            }
+            let sockets = tcpSockets(pid: pid).filter { $0.remote == proxyPort }
+            guard !sockets.isEmpty, let path = executablePath(pid: pid) else { continue }
+            let client = Client(app: appName(executablePath: path), device: simulatorDevice(executablePath: path))
+            guard client.app != nil || client.device != nil else { continue }
+            for socket in sockets { result[socket.local] = client }
         }
         return result
     }
@@ -83,10 +93,38 @@ public enum ProcessLookup {
 
     /// Outermost `.app` name for the process (helpers resolve to their parent app), else nil.
     static func appName(pid: pid_t) -> String? {
+        executablePath(pid: pid).flatMap(appName(executablePath:))
+    }
+
+    private static func executablePath(pid: pid_t) -> String? {
         var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
         guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
-        return appName(executablePath: String(cString: buffer))
+        return String(cString: buffer)
     }
+
+    /// UDID from `.../CoreSimulator/Devices/<UDID>/...`, uppercased; nil outside a simulator.
+    static func simulatorDevice(executablePath path: String) -> String? {
+        guard let range = path.range(of: "/CoreSimulator/Devices/") else { return nil }
+        let udid = path[range.upperBound...].prefix { $0 != "/" }
+        return UUID(uuidString: String(udid)) != nil ? udid.uppercased() : nil
+    }
+
+    /// Simulator name from its `device.plist` (e.g. "iPhone 17"), cached; nil when the simulator is gone.
+    public static func simulatorName(udid: String, root: URL = simulatorRoot) -> String? {
+        nameLock.lock()
+        defer { nameLock.unlock() }
+        let key = root.path + "/" + udid
+        if let hit = names[key] { return hit }
+        let url = root.appendingPathComponent(udid).appendingPathComponent("device.plist")
+        guard let data = try? Data(contentsOf: url),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let name = plist["name"] as? String else { return nil }
+        names[key] = name
+        return name
+    }
+
+    public static let simulatorRoot = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Developer/CoreSimulator/Devices")
 
     static func appName(executablePath path: String) -> String? {
         if let app = path.split(separator: "/").first(where: { $0.hasSuffix(".app") }) {

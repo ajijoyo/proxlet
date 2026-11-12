@@ -26,13 +26,16 @@ public struct ProxyRequest: Codable, Sendable {
     public var body: Data
     /// Local app that opened the connection, when it came from this Mac.
     public var clientApp: String?
+    /// iOS simulator UDID when the client app runs in a simulator.
+    public var clientDevice: String?
 
-    public init(method: String, url: String, headers: [Header], body: Data, clientApp: String? = nil) {
+    public init(method: String, url: String, headers: [Header], body: Data, clientApp: String? = nil, clientDevice: String? = nil) {
         self.method = method
         self.url = url
         self.headers = headers
         self.body = body
         self.clientApp = clientApp
+        self.clientDevice = clientDevice
     }
 }
 
@@ -76,10 +79,12 @@ public struct Flow: Codable, Identifiable, Hashable, Sendable {
     public private(set) var pathSegments: [String] = []
     /// Client app: the local process's .app when known, else guessed from User-Agent.
     public private(set) var app = "Unknown"
+    /// iOS simulator UDID of the client, when known.
+    public private(set) var device: String?
 
     enum CodingKeys: String, CodingKey {
         case id, startedAt, method, url, requestHeaders, requestBody, status, responseHeaders, responseBody
-        case durationMs, mocked, error, scripts, app, websocket
+        case durationMs, mocked, error, scripts, app, websocket, device
     }
 
     public init(from decoder: Decoder) throws {
@@ -100,6 +105,7 @@ public struct Flow: Codable, Identifiable, Hashable, Sendable {
         websocket = try c.decodeIfPresent(Bool.self, forKey: .websocket) ?? false
         parseURL()
         if let saved = try c.decodeIfPresent(String.self, forKey: .app) { app = saved }
+        device = try c.decodeIfPresent(String.self, forKey: .device)
     }
 
     private mutating func parseURL() {
@@ -194,6 +200,7 @@ public struct Flow: Codable, Identifiable, Hashable, Sendable {
         self.websocket = websocket
         parseURL()
         if let local = request.clientApp { app = local }
+        device = request.clientDevice
     }
 }
 

@@ -65,6 +65,36 @@ final class ProxyServerTests: ProxletTestCase {
         await upstream.stop()
     }
 
+    /// A phone on Wi-Fi is told apart by its IP: its rule answers it, while this Mac gets the general rule.
+    func testMapLocalPerNetworkClientIP() async throws {
+        let lan = try XCTUnwrap(SystemProxy.lanIPv4() as String?, "no LAN address")
+        let upstream = try await TestUpstream.start()
+        let url = "http://127.0.0.1:\(upstream.port)/v1/profile"
+        try RuleStore.save(MockRule(id: "general", urlPattern: url, status: 200, body: "general"))
+        try RuleStore.save(MockRule(id: "phone", urlPattern: url, status: 299, body: "phone", devices: [lan]))
+        let (proxy, port) = try await startProxy()
+        let request = Array("GET \(url) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".utf8)
+
+        let phone = try RawSocket(port: port, host: lan)
+        phone.send(request)
+        let phoneHead = phone.receiveHead().head
+        XCTAssertTrue(phoneHead.hasPrefix("HTTP/1.1 299"), phoneHead)
+        XCTAssertTrue(phoneHead.contains("X-Proxlet-Mock: phone"), phoneHead)
+
+        let mac = try RawSocket(port: port)
+        mac.send(request)
+        let macHead = mac.receiveHead().head
+        XCTAssertTrue(macHead.hasPrefix("HTTP/1.1 200"), macHead)
+        XCTAssertTrue(macHead.contains("X-Proxlet-Mock: general"), macHead)
+
+        await eventually("both flows recorded") { FlowStore.load().count == 2 }
+        let flows = FlowStore.load()
+        XCTAssertEqual(flows.filter { $0.device == lan }.map(\.status), [299], "only the phone's flow carries its IP")
+        XCTAssertEqual(flows.filter { $0.device == nil }.map(\.status), [200], "a local app is not tagged with an IP")
+        await proxy.stop()
+        await upstream.stop()
+    }
+
     /// Connects through this Mac's Wi-Fi address, the same path a phone takes; skipped without a LAN address.
     func testNetworkClientsNeedApproval() async throws {
         let lan = try XCTUnwrap(SystemProxy.lanIPv4() as String?, "no LAN address")
