@@ -32,17 +32,33 @@ public enum Proxyman {
     }
 
     /// `MapLocalFiles-RuleTree`: `{"nodes":[{"nodeType":{"node":{"_0":{name,url,regex,method,isEnabled,localFile:{path}}}}}]}`
-    static func mapLocalRules(_ data: Data) -> [MockRule]? {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let nodes = root["nodes"] as? [[String: Any]] else { return nil }
-        return RuleTree.rules(nodes).compactMap { r in
+    /// Picking the wrong kind of export in an import dialog.
+    public struct WrongKind: LocalizedError {
+        public let errorDescription: String?
+    }
+
+    /// Scripting rules carry their code; Map Local rules point at a local file.
+    static func isScript(_ rule: [String: Any]) -> Bool { rule["fileContent"] != nil || rule["isEnableRequest"] != nil }
+
+    /// Also a rule export (`.config`): a bare node array, maybe gzipped, with each body embedded as base64 `importFileData`.
+    static func mapLocalRules(_ data: Data) throws -> [MockRule]? {
+        let json = data.starts(with: [0x1f, 0x8b]) ? (ContentDecoding.gunzip(data) ?? Data()) : data
+        let root = try? JSONSerialization.jsonObject(with: json)
+        let dict = root as? [String: Any]
+        guard let nodes = root as? [[String: Any]] ?? dict?["nodes"] as? [[String: Any]] ?? dict?["tree"] as? [[String: Any]]
+        else { return nil }
+        let rules = RuleTree.rules(nodes)
+        if !rules.isEmpty, rules.allSatisfy(isScript) {
+            throw WrongKind(errorDescription: "This file has scripts, not Map Local rules. Import it from the Scripts page.")
+        }
+        return rules.filter { !isScript($0) }.compactMap { r in
             guard let url = r["url"] as? String else { return nil }
-            let path = (r["localFile"] as? [String: Any])?["path"] as? String
-            let message = path.flatMap { p in
-                (try? String(contentsOfFile: p, encoding: .utf8)).map {
-                    HTTPMessageFormat.parseFile($0, pathExtension: (p as NSString).pathExtension)
-                }
-            }
+            let file = r["localFile"] as? [String: Any]
+            let path = file?["path"] as? String
+            // The embedded copy travels with the export; the path only exists on the exporting Mac.
+            let embedded = (file?["importFileData"] as? String).flatMap { Data(base64Encoded: $0) }.flatMap { String(data: $0, encoding: .utf8) }
+            let text = embedded ?? path.flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
+            let message = text.map { HTTPMessageFormat.parseFile($0, pathExtension: ((path ?? "") as NSString).pathExtension) }
             return MockRule(name: r["name"] as? String ?? "", enabled: r["isEnabled"] as? Bool ?? true,
                             method: RuleTree.method(r), urlPattern: url, useRegex: (r["regex"] as? String) == "useRegex",
                             status: message?.status ?? 200, headers: message?.headers ?? [:], body: message?.body ?? "")
@@ -64,17 +80,22 @@ public enum Proxyman {
         }
 
         public struct FormatError: LocalizedError {
-            public var errorDescription: String? { "Not a Proxyman scripting export (.config)." }
+            public var errorDescription: String? { "This file has no scripts Proxlet can read." }
         }
 
         public static func importConfig(_ data: Data, existing: Set<String> = []) throws -> Result {
             let json = data.starts(with: [0x1f, 0x8b]) ? (ContentDecoding.gunzip(data) ?? Data()) : data
-            guard let root = try? JSONSerialization.jsonObject(with: json) as? [String: Any],
-                  let tree = root["tree"] as? [[String: Any]] else { throw FormatError() }
+            let parsed = try? JSONSerialization.jsonObject(with: json)
+            let mapLocal = WrongKind(errorDescription: "This file has Map Local rules, not scripts. Import it from the Map Local page.")
+            if let nodes = parsed as? [[String: Any]] ?? (parsed as? [String: Any])?["nodes"] as? [[String: Any]],
+               !RuleTree.rules(nodes).isEmpty { throw mapLocal }
+            guard let root = parsed as? [String: Any], let tree = root["tree"] as? [[String: Any]] else { throw FormatError() }
+            let found = RuleTree.rules(tree)
+            if !found.isEmpty, !found.contains(where: isScript) { throw mapLocal }
             var used = existing
             var scripts: [Imported] = []
             var mockAPI: [String] = []
-            for r in RuleTree.rules(tree) {
+            for r in found {
                 var meta = ScriptMeta()
                 meta.name = r["name"] as? String ?? "Imported Script"
                 meta.enabled = r["isEnabled"] as? Bool ?? true

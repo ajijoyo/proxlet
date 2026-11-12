@@ -18,7 +18,7 @@ public enum MapLocalArchive {
 
     public struct FormatError: LocalizedError {
         public var errorDescription: String? {
-            "Not a Map Local file. Expected a Proxlet export or Proxyman's MapLocalFiles-RuleTree."
+            "This file has no Map Local rules Proxlet can read."
         }
     }
 
@@ -44,7 +44,7 @@ public enum MapLocalArchive {
             rules = envelope.rules
         } else if let array = try? decoder.decode([MockRule].self, from: data) {
             rules = array
-        } else if let proxyman = Proxyman.mapLocalRules(data) {
+        } else if let proxyman = try Proxyman.mapLocalRules(data) {
             rules = proxyman
         } else {
             throw FormatError()

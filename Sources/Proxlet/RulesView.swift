@@ -34,6 +34,7 @@ struct PageHeader: View {
 struct MapLocalView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @State private var selection = Set<MockRule.ID>()
 
     var body: some View {
         @Bindable var model = model
@@ -52,7 +53,7 @@ struct MapLocalView: View {
             if !model.mapLocalOn {
                 Text("Map Local is off: all requests go to the network.").foregroundStyle(.orange).padding(.horizontal, 16)
             }
-            List {
+            List(selection: $selection) {
                 if model.rules.isEmpty {
                     Text("No rules. Right-click a flow → Map Local, or use the proxlet MCP.")
                         .foregroundStyle(.secondary)
@@ -80,11 +81,29 @@ struct MapLocalView: View {
                         .labelStyle(.iconOnly)
                     }
                     .opacity(model.mapLocalOn ? 1 : 0.5)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { openWindow(id: "mapLocal", value: rule.id) }
+                    .tag(rule.id)
                 }
             }
+            .contextMenu(forSelectionType: MockRule.ID.self) { ids in
+                if ids.count == 1, let id = ids.first { Button("Edit", systemImage: "pencil") { openWindow(id: "mapLocal", value: id) } }
+                if !ids.isEmpty {
+                    Button(ids.count == 1 ? "Delete" : "Delete \(ids.count) Rules", systemImage: "trash", role: .destructive) { deleteRules(ids) }
+                }
+            } primaryAction: { ids in
+                ids.forEach { openWindow(id: "mapLocal", value: $0) }
+            }
+            .onDeleteCommand { deleteRules(selection) }
         }
+    }
+
+    private func deleteRules(_ ids: Set<MockRule.ID>) {
+        let rules = model.rules.filter { ids.contains($0.id) }
+        guard !rules.isEmpty else { return }
+        let title = rules.count == 1 ? "Delete Map Local rule \"\(rules[0].name.isEmpty ? rules[0].urlPattern : rules[0].name)\"?"
+            : "Delete \(rules.count) Map Local rules?"
+        guard model.confirm(title, "The rules will be deleted. This can't be undone.") else { return }
+        rules.forEach(model.delete)
+        selection.subtract(ids)
     }
 }
 
@@ -92,7 +111,7 @@ extension ScriptsView {
     private func importScripts() {
         let panel = NSOpenPanel()
         panel.title = "Import Scripts"
-        panel.message = "Choose a Proxyman scripting export (.config)."
+        panel.message = "Choose a scripts file (.config)."
         panel.allowedContentTypes = [UTType(filenameExtension: "config") ?? .data, .json, .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
@@ -128,7 +147,7 @@ extension MapLocalView {
     private func importRules() {
         let panel = NSOpenPanel()
         panel.title = "Import Map Local Rules"
-        panel.message = "Choose a Proxlet Map Local .json, or Proxyman's ~/Library/Application Support/com.proxyman.NSProxy/user-data/MapLocalFiles-RuleTree."
+        panel.message = "Choose a Map Local rules file (.json or .config)."
         panel.allowedContentTypes = [.json, .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
@@ -156,6 +175,7 @@ extension MapLocalView {
 struct ScriptsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @State private var selection = Set<String>()
 
     var body: some View {
         @Bindable var model = model
@@ -175,7 +195,7 @@ struct ScriptsView: View {
             if !model.scriptsOn {
                 Text("Scripts are off: requests and responses pass through unchanged.").foregroundStyle(.orange).padding(.horizontal, 16)
             }
-            List {
+            List(selection: $selection) {
                 if model.scripts.isEmpty {
                     Text("No scripts. Right-click a flow or path → Add Script.")
                         .foregroundStyle(.secondary)
@@ -204,10 +224,30 @@ struct ScriptsView: View {
                         .labelStyle(.iconOnly)
                     }
                     .opacity(model.scriptsOn ? 1 : 0.5)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { openWindow(id: "script", value: name) }
+                    .tag(name)
                 }
             }
+            .contextMenu(forSelectionType: String.self) { names in
+                if names.count == 1, let name = names.first { Button("Edit", systemImage: "pencil") { openWindow(id: "script", value: name) } }
+                if !names.isEmpty {
+                    Button(names.count == 1 ? "Delete" : "Delete \(names.count) Scripts", systemImage: "trash", role: .destructive) {
+                        deleteScripts(names)
+                    }
+                }
+            } primaryAction: { names in
+                names.forEach { openWindow(id: "script", value: $0) }
+            }
+            .onDeleteCommand { deleteScripts(selection) }
         }
+    }
+
+    private func deleteScripts(_ names: Set<String>) {
+        let chosen = model.scripts.filter(names.contains)
+        guard !chosen.isEmpty else { return }
+        let title = chosen.count == 1 ? "Delete script \"\(model.scriptMeta[chosen[0]].map { $0.name.isEmpty ? chosen[0] : $0.name } ?? chosen[0])\"?"
+            : "Delete \(chosen.count) scripts?"
+        guard model.confirm(title, "The scripts will be moved to the Trash, where you can restore them.") else { return }
+        chosen.forEach(model.deleteScript)
+        selection.subtract(names)
     }
 }

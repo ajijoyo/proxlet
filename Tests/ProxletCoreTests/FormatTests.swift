@@ -236,10 +236,10 @@ final class FormatTests: ProxletTestCase {
             XCTAssertEqual($0.localizedDescription, "Not a HAR 1.2 file (missing log.entries).")
         }
         XCTAssertThrowsError(try Proxyman.ScriptConfig.importConfig(Data("nope".utf8))) {
-            XCTAssertEqual($0.localizedDescription, "Not a Proxyman scripting export (.config).")
+            XCTAssertEqual($0.localizedDescription, "This file has no scripts Proxlet can read.")
         }
         XCTAssertThrowsError(try MapLocalArchive.importRules(Data("[1]".utf8))) {
-            XCTAssertTrue($0.localizedDescription.hasPrefix("Not a Map Local file."))
+            XCTAssertEqual($0.localizedDescription, "This file has no Map Local rules Proxlet can read.")
         }
         XCTAssertTrue(CharlesConverter.Missing().localizedDescription.contains(".har"))
     }

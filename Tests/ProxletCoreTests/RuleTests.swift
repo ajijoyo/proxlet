@@ -148,6 +148,57 @@ extension RuleTests {
     }
 }
 
+extension RuleTests {
+    func testMapLocalRunsFirstThenOnResponseScripts() async throws {
+        let upstream = try await TestUpstream.start()
+        let url = "http://127.0.0.1:\(upstream.port)/echo"
+        try RuleStore.save(MockRule(urlPattern: url + "*", status: 200, headers: ["Content-Type": "application/json"],
+                                    body: #"{"source":"mock"}"#, delayMs: 50))
+        try writeScript("edit.js", """
+        // @match \(url)*
+        function onRequest(req) { req.headers["X-From-Script"] = "request"; return req; }
+        function onResponse(req, res) {
+          var body = JSON.parse(res.body);
+          body.scripted = true;
+          res.body = JSON.stringify(body);
+          res.headers["X-Script"] = "1";
+          res.status = 201;
+          return res;
+        }
+        """)
+        let pipeline = FlowPipeline(store: FlowStore())
+
+        // Both on: the mock answers (the server is never asked), then onResponse edits that mock.
+        let both = await pipeline.handle(get: url)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: both.body) as? [String: Any])
+        XCTAssertEqual(json["source"] as? String, "mock", "Map Local supplied the body")
+        XCTAssertEqual(json["scripted"] as? Bool, true, "then the script changed it")
+        XCTAssertEqual(both.status, 201)
+        XCTAssertEqual(both.headers.first { $0.name == "X-Script" }?.value, "1")
+        XCTAssertNotNil(both.headers.first { $0.name == "X-Proxlet-Mock" })
+        XCTAssertNil(json["headers"], "the upstream echo never ran, so onRequest had nothing to send")
+        let flow = try XCTUnwrap(FlowStore.load().last)
+        XCTAssertTrue(flow.mocked)
+        XCTAssertEqual(flow.scripts, ["edit.js"])
+
+        // Scripts off: the plain mock.
+        pipeline.scriptsEnabled = false
+        let mockOnly = await pipeline.handle(get: url)
+        XCTAssertEqual(String(decoding: mockOnly.body, as: UTF8.self), #"{"source":"mock"}"#)
+        XCTAssertEqual(mockOnly.status, 200)
+
+        // Map Local off: the request reaches the server and both script phases run on the real traffic.
+        pipeline.scriptsEnabled = true
+        pipeline.mapLocalEnabled = false
+        let live = await pipeline.handle(get: url)
+        let echoed = try XCTUnwrap(JSONSerialization.jsonObject(with: live.body) as? [String: Any])
+        XCTAssertEqual((echoed["headers"] as? [String: String])?["x-from-script"], "request")
+        XCTAssertEqual(echoed["scripted"] as? Bool, true)
+        XCTAssertFalse(try XCTUnwrap(FlowStore.load().last).mocked)
+        await upstream.stop()
+    }
+}
+
 private extension FlowPipeline {
     func handle(get url: String) async -> ProxyResponse {
         await handle(ProxyRequest(method: "GET", url: url, headers: [], body: Data()))
