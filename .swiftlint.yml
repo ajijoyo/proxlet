@@ -1,0 +1,20 @@
+# Short bindings (a, h, p) are idiomatic in small closures; long lines are wrapped at 160.
+included:
+  - Sources
+  - Tests
+  - scripts
+identifier_name:
+  min_length: 1
+# Format namespaces nest their result types (Proxyman.ScriptConfig.Result).
+nesting:
+  type_level: 2
+line_length:
+  warning: 160
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+disabled_rules:
+  # Multi-line literals use trailing commas for clean diffs; single-line ones don't.
+  - trailing_comma
+  # String(decoding:as:) is deliberate: invalid UTF-8 in captured traffic is shown lossily, not dropped.
+  - optional_data_string_conversion
