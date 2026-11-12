@@ -12,6 +12,7 @@ A native macOS HTTPS debugging proxy. Inspect traffic from your Mac, iOS simulat
 - MCP server (`proxlet-mcp`) with 33 tools
 
 Requires macOS 14 or later and Xcode / Swift 6 toolchain to build.
+<img width="1304" height="1088" alt="Screenshot 2026-11-12 at 14 28 32" src="https://github.com/user-attachments/assets/a77e6094-bce0-4f70-bcd8-dc144ab17c32" />
 
 ## Install
 
