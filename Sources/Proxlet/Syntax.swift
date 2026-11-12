@@ -251,7 +251,10 @@ enum Syntax {
 /// Editable, syntax-highlighted code view (NSTextView) used by the Map Local and Script editors.
 struct CodeTextView: NSViewRepresentable {
     @Binding var text: String
-    let kind: SyntaxKind
+    /// nil shows plain text.
+    let kind: SyntaxKind?
+    /// false for read-only panes such as the flow detail.
+    var editable = true
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -267,10 +270,13 @@ struct CodeTextView: NSViewRepresentable {
         tv.isAutomaticSpellingCorrectionEnabled = false
         tv.isContinuousSpellCheckingEnabled = false
         tv.textContainerInset = NSSize(width: 6, height: 8)
+        tv.isEditable = editable
+        // Lays out only what is visible, so large bodies open quickly.
+        tv.layoutManager?.allowsNonContiguousLayout = true
         tv.delegate = context.coordinator
         tv.string = text
         context.coordinator.highlight(tv)
-        scroll.borderType = .bezelBorder
+        scroll.borderType = editable ? .bezelBorder : .noBorder
         return scroll
     }
 
@@ -300,7 +306,7 @@ struct CodeTextView: NSViewRepresentable {
             storage.beginEditing()
             storage.setAttributes([.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
                                    .foregroundColor: NSColor.textColor], range: all)
-            for (range, token) in Syntax.spans(tv.string, kind: parent.kind) {
+            for (range, token) in parent.kind.map({ Syntax.spans(tv.string, kind: $0) }) ?? [] {
                 guard let hex = token.hex(in: palette) else { continue }
                 storage.addAttribute(.foregroundColor, value: Syntax.nsColor(hex), range: range)
             }

@@ -119,17 +119,13 @@ struct FlowListView: View {
     }
 
     private func list(_ rows: [Flow]) -> some View {
-        Group {
-            // Detail is shown for a single selection; multi-select is for batch actions.
-            if selection.count == 1, let id = selection.first, let flow = model.index.byID[id] {
-                ResizableSplit(axis: .vertical, fraction: $split, minFirst: 120, minSecond: 200) {
-                    table(rows)
-                } second: {
-                    FlowDetailView(flow: flow)
-                }
-            } else {
-                table(rows)
-            }
+        // Detail is shown for a single selection; multi-select is for batch actions.
+        let detail = selection.count == 1 ? selection.first.flatMap { model.index.byID[$0] } : nil
+        // One split either way, so the table (and its scroll position) survives opening a flow.
+        return ResizableSplit(axis: .vertical, fraction: $split, minFirst: 120, minSecond: 200, showsSecond: detail != nil) {
+            table(rows)
+        } second: {
+            if let detail { FlowDetailView(flow: detail) }
         }
         // Opening a flow from the empty state always starts at half height.
         .onChange(of: selection) { old, new in
@@ -138,52 +134,31 @@ struct FlowListView: View {
     }
 
     private func table(_ rows: [Flow]) -> some View {
-        Table(rows, selection: $selection) {
-            TableColumn("Method") { MethodBadge(method: $0.websocket ? "WS" : $0.method) }.width(64)
-            TableColumn("Status") { flow in
-                StatusText(code: flow.status)
-            }.width(50)
-            TableColumn(Text(filter.urlTitle).bold()) { flow in
-                Text(filter.displayURL(flow)).lineLimit(1).truncationMode(.middle).help(flow.url)
-            }
-            .width(min: 200, ideal: 520)
-            TableColumn("Time") { Text(Self.time.string(from: $0.startedAt)).monospacedDigit() }.width(90)
-            TableColumn("Duration") { Text("\($0.durationMs) ms").monospacedDigit() }.width(70)
-            TableColumn("") { flow in
-                HStack(spacing: 4) {
-                    if flow.mocked { Image(systemName: "wand.and.stars").help("Served by Map Local") }
-                    if !flow.scripts.isEmpty {
-                        Image(systemName: "curlybraces").help("Changed by script: \(flow.scripts.joined(separator: ", "))")
-                    }
-                }
-            }.width(40)
+        FlowTable(rows: rows, selection: $selection, urlTitle: filter.urlTitle, displayURL: filter.displayURL,
+                  menu: menu, onDelete: delete)
+    }
+
+    private func menu(_ ids: Set<Flow.ID>, _ menu: NSMenu) {
+        if ids.count == 1, let id = ids.first, let flow = model.index.byID[id], flow.method == "CONNECT" {
+            menu.addItem(MenuAction("Enable SSL Proxying for \(flow.host)", symbol: "lock.open") { model.setSSLProxying(true, for: flow.host) })
+            menu.addItem(.separator())
+        } else if ids.count == 1, let id = ids.first, let flow = model.index.byID[id] {
+            menu.addItem(MenuAction("Map Local", symbol: "wand.and.stars") {
+                if let id = model.mock(flow) { openWindow(id: "mapLocal", value: id) }
+            })
+            menu.addItem(MenuAction("Add Script", symbol: "curlybraces") {
+                if let name = model.addScript(for: flow.url, method: flow.method) { openWindow(id: "script", value: name) }
+            })
+            menu.addItem(MenuAction("Copy URL") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(flow.url, forType: .string)
+            })
+            menu.addItem(MenuAction("Export Response…", symbol: "doc.badge.arrow.up") { SessionFiles.exportResponse(flow, model: model) })
+            menu.addItem(.separator())
         }
-        .contextMenu(forSelectionType: Flow.ID.self) { ids in
-            if ids.count == 1, let id = ids.first, let flow = model.index.byID[id], flow.method == "CONNECT" {
-                Button("Enable SSL Proxying for \(flow.host)", systemImage: "lock.open") { model.setSSLProxying(true, for: flow.host) }
-                Divider()
-            } else if ids.count == 1, let id = ids.first, let flow = model.index.byID[id] {
-                Button("Map Local", systemImage: "wand.and.stars") {
-                    if let id = model.mock(flow) { openWindow(id: "mapLocal", value: id) }
-                }
-                Button("Add Script", systemImage: "curlybraces") {
-                    if let name = model.addScript(for: flow.url, method: flow.method) { openWindow(id: "script", value: name) }
-                }
-                Button("Copy URL") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(flow.url, forType: .string)
-                }
-                Button("Export Response…", systemImage: "doc.badge.arrow.up") { SessionFiles.exportResponse(flow, model: model) }
-                Divider()
-            }
-            if !ids.isEmpty {
-                Button(ids.count == 1 ? "Delete" : "Delete \(ids.count) Flows", systemImage: "trash", role: .destructive) {
-                    delete(ids)
-                }
-            }
+        if !ids.isEmpty {
+            menu.addItem(MenuAction(ids.count == 1 ? "Delete" : "Delete \(ids.count) Flows", symbol: "trash") { delete(ids) })
         }
-        // ⌫ / Edit › Delete removes the selected rows.
-        .onDeleteCommand { delete(selection) }
     }
 
     private func delete(_ ids: Set<Flow.ID>) {

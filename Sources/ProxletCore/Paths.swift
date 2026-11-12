@@ -12,7 +12,7 @@ import Foundation
 public enum Paths {
     /// Keep in sync with CFBundleShortVersionString in make-app.sh.
     /// The only place the version is set; make-app.sh copies it into Info.plist.
-    public static let appVersion = "0.1.1"
+    public static let appVersion = "0.1.2"
 
     public static var root: URL = {
         if let custom = ProcessInfo.processInfo.environment["PROXLET_HOME"] {

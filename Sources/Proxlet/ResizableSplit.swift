@@ -15,6 +15,8 @@ struct ResizableSplit<First: View, Second: View>: View {
     @Binding var fraction: CGFloat
     var minFirst: CGFloat = 120
     var minSecond: CGFloat = 160
+    /// False gives `first` the whole space; `first` keeps its identity either way.
+    var showsSecond = true
     @ViewBuilder var first: First
     @ViewBuilder var second: Second
 
@@ -27,15 +29,19 @@ struct ResizableSplit<First: View, Second: View>: View {
             let size = min(max(total * fraction, minFirst), max(minFirst, total - minSecond))
             if axis == .vertical {
                 VStack(spacing: 0) {
-                    first.frame(height: size)
-                    grip(total: total, current: size)
-                    second.frame(maxHeight: .infinity)
+                    first.frame(height: showsSecond ? size : geo.size.height)
+                    if showsSecond {
+                        grip(total: total, current: size)
+                        second.frame(maxHeight: .infinity)
+                    }
                 }
             } else {
                 HStack(spacing: 0) {
-                    first.frame(width: size)
-                    grip(total: total, current: size)
-                    second.frame(maxWidth: .infinity)
+                    first.frame(width: showsSecond ? size : geo.size.width)
+                    if showsSecond {
+                        grip(total: total, current: size)
+                        second.frame(maxWidth: .infinity)
+                    }
                 }
             }
         }

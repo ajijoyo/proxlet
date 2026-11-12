@@ -17,16 +17,26 @@ struct FlowDetailView: View {
     @State private var split: CGFloat = 0.5
     @State private var image: BodyImage?
 
+    private static let urlMaxHeight = NSLayoutManager().defaultLineHeight(for: .systemFont(ofSize: NSFont.systemFontSize)) * 3
+
+    private var url: some View {
+        Text(flow.url)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 MethodBadge(method: flow.method)
                 StatusText(code: flow.status)
-                // Wraps instead of pushing the buttons off screen.
-                Text(flow.url)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // Wraps up to 3 lines, then scrolls, so long URLs don't push the body down.
+                ViewThatFits(in: .vertical) {
+                    url
+                    ScrollView { url }
+                }
+                .frame(maxWidth: .infinity, maxHeight: Self.urlMaxHeight, alignment: .leading)
                 Text("\(flow.durationMs) ms").foregroundStyle(.secondary).monospacedDigit().fixedSize()
                 Button("Map Local", systemImage: "wand.and.stars") {
                     if let id = model.mock(flow) { openWindow(id: "mapLocal", value: id) }
@@ -109,12 +119,19 @@ struct MessagePane: View {
                 Spacer()
                 Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") { copy() }
             }
-            ScrollView {
-                content
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
+            Group {
+                // Bodies and raw messages can be tens of KB; NSTextView lays them out far faster than SwiftUI Text.
+                if let code {
+                    CodeTextView(text: .constant(code.text), kind: code.kind, editable: false)
+                } else {
+                    ScrollView {
+                        content
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
+                }
             }
             .background(Color(nsColor: .textBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -145,15 +162,21 @@ struct MessagePane: View {
                         .frame(maxWidth: image.image.size.width, maxHeight: image.image.size.height)
                     Text(image.caption).font(.caption).foregroundStyle(.secondary)
                 }
-            } else if bodyText.isEmpty {
-                Text("No body").foregroundStyle(.secondary)
-            } else if let pretty = JSONFormatter.pretty(bodyText) {
-                Text(Syntax.attributed(pretty, kind: .json, dark: colorScheme == .dark))
             } else {
-                Text(bodyText)
+                Text("No body").foregroundStyle(.secondary)
             }
         case .raw:
-            Text(Syntax.attributed(raw, kind: .http, dark: colorScheme == .dark))
+            EmptyView()
+        }
+    }
+
+    /// Text shown in a read-only code view: the raw message, or a non-empty, non-image body.
+    private var code: (text: String, kind: SyntaxKind?)? {
+        switch tab {
+        case .raw: return (raw, .http)
+        case .body where image == nil && !bodyText.isEmpty:
+            return JSONFormatter.pretty(bodyText).map { ($0, .json) } ?? (bodyText, nil)
+        default: return nil
         }
     }
 
