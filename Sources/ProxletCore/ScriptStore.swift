@@ -48,6 +48,8 @@ public enum ScriptStore {
     @discardableResult
     public static func create(fileName: String, meta: ScriptMeta, code: String) throws -> String {
         try Paths.ensure()
+        var meta = meta
+        meta.created = meta.created ?? Date()
         try meta.render(code: code).write(to: Paths.scripts.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
         return fileName
     }

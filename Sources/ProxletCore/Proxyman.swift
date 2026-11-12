@@ -104,6 +104,7 @@ public enum Proxyman {
                 meta.method = RuleTree.method(r)
                 meta.onRequest = r["isEnableRequest"] as? Bool ?? true
                 meta.onResponse = r["isEnableResponse"] as? Bool ?? true
+                meta.created = Date()
                 if r["isMockResponse"] as? Bool == true { mockAPI.append(meta.name) }
                 let code = r["fileContent"] as? String ?? ""
                 let name = ScriptStore.uniqueFileName(for: meta.name, used: &used)

@@ -25,6 +25,8 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
     public var bodyFile: String?
     /// Milliseconds to wait before answering; nil answers immediately.
     public var delayMs: Int?
+    /// When the rule was created; nil for rules saved before this was recorded.
+    public var createdAt: Date?
     /// File the rule was loaded from (not persisted); rule files may be named by hand, not only `<id>.json`.
     public var sourceFile: URL?
 
@@ -35,13 +37,13 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
     public static let methods = ["ANY", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
 
     enum CodingKeys: String, CodingKey {
-        case id, name, enabled, method, urlPattern, useRegex, status, headers, body, bodyFile, delayMs
+        case id, name, enabled, method, urlPattern, useRegex, status, headers, body, bodyFile, delayMs, createdAt
     }
 
     public init(
         id: String = UUID().uuidString.lowercased(), name: String = "", enabled: Bool = true, method: String? = nil,
         urlPattern: String, useRegex: Bool = false, status: Int = 200, headers: [String: String] = [:],
-        body: String = "", bodyFile: String? = nil, delayMs: Int? = nil
+        body: String = "", bodyFile: String? = nil, delayMs: Int? = nil, createdAt: Date? = Date()
     ) {
         self.id = id
         self.name = name
@@ -54,6 +56,7 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
         self.body = body
         self.bodyFile = bodyFile
         self.delayMs = delayMs
+        self.createdAt = createdAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,6 +72,7 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
         body = try c.decodeIfPresent(String.self, forKey: .body) ?? ""
         bodyFile = try c.decodeIfPresent(String.self, forKey: .bodyFile)
         delayMs = try c.decodeIfPresent(Int.self, forKey: .delayMs)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
     }
 
     /// Rule replaying a captured flow's response for the same method + URL.
@@ -137,7 +141,7 @@ public enum RuleStore {
         return files.filter { $0.pathExtension == "json" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .compactMap { url in
-                guard let data = try? Data(contentsOf: url), var rule = try? JSONDecoder().decode(MockRule.self, from: data)
+                guard let data = try? Data(contentsOf: url), var rule = try? decoder.decode(MockRule.self, from: data)
                 else { return nil }
                 rule.sourceFile = url
                 return rule
@@ -152,7 +156,14 @@ public enum RuleStore {
     static let encoder: JSONEncoder = {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        enc.dateEncodingStrategy = .iso8601
         return enc
+    }()
+
+    static let decoder: JSONDecoder = {
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return dec
     }()
 
     /// Writes back to the file the rule came from, or `<id>.json` for new rules.

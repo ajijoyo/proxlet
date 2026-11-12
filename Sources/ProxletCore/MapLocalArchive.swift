@@ -36,9 +36,9 @@ public enum MapLocalArchive {
         return try RuleStore.encoder.encode(Envelope(rules: portable))
     }
 
-    /// Rules from a Proxlet export, a bare rule array, or a rule tree export; every rule gets a fresh id.
+    /// Rules from a Proxlet export, a bare rule array, or a rule tree export; every rule gets a fresh id and date.
     public static func importRules(_ data: Data) throws -> [MockRule] {
-        let decoder = JSONDecoder()
+        let decoder = RuleStore.decoder
         var rules: [MockRule]
         if let envelope = try? decoder.decode(Envelope.self, from: data) {
             rules = envelope.rules
@@ -49,7 +49,10 @@ public enum MapLocalArchive {
         } else {
             throw FormatError()
         }
-        for i in rules.indices { rules[i].id = UUID().uuidString.lowercased() }
+        for i in rules.indices {
+            rules[i].id = UUID().uuidString.lowercased()
+            rules[i].createdAt = Date()
+        }
         return rules
     }
 }

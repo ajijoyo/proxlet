@@ -45,10 +45,15 @@ extension AppModel {
         flows.removeAll()
     }
 
+    /// Newest first; undated ones go last, ties by file name. Matching order stays by file name.
     func reloadRules() {
-        let loaded = RuleStore.load()
+        let loaded = RuleStore.load().sorted {
+            ($0.createdAt ?? .distantPast, $1.sourceFile?.lastPathComponent ?? "") > ($1.createdAt ?? .distantPast, $0.sourceFile?.lastPathComponent ?? "")
+        }
         if loaded != rules { rules = loaded }
-        let listed = ScriptStore.list()
+        let listed = ScriptStore.list().sorted {
+            ($0.meta.created ?? .distantPast, $1.fileName) > ($1.meta.created ?? .distantPast, $0.fileName)
+        }
         let names = listed.map(\.fileName)
         if names != scripts { scripts = names }
         let metas = Dictionary(uniqueKeysWithValues: listed.map { ($0.fileName, $0.meta) })

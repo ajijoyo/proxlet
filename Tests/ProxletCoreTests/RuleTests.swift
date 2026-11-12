@@ -39,6 +39,24 @@ final class RuleTests: ProxletTestCase {
         XCTAssertNil(RuleStore.match(method: "GET", url: "https://x/1"))
     }
 
+    func testCreationDatesRoundTrip() throws {
+        let created = Date(timeIntervalSince1970: 1_800_000_000)
+        try RuleStore.save(MockRule(id: "dated", urlPattern: "https://x/*", createdAt: created))
+        XCTAssertEqual(RuleStore.load().first { $0.id == "dated" }?.createdAt, created)
+        try #"{"id":"old","urlPattern":"https://y/*"}"#.write(
+            to: Paths.rules.appendingPathComponent("old.json"), atomically: true, encoding: .utf8)
+        XCTAssertNil(RuleStore.load().first { $0.id == "old" }?.createdAt)
+        let imported = try MapLocalArchive.importRules(MapLocalArchive.export(RuleStore.load()))
+        XCTAssertTrue(imported.allSatisfy { $0.createdAt != nil })
+
+        var meta = ScriptMeta()
+        meta.created = created
+        XCTAssertEqual(ScriptMeta.parse(meta.render(code: "")).0.created, created)
+        XCTAssertNil(ScriptMeta.parse(ScriptMeta().render(code: "")).0.created)
+        let file = try ScriptStore.create(fileName: "s.js", meta: ScriptMeta(), code: "")
+        XCTAssertNotNil(ScriptStore.list().first { $0.fileName == file }?.meta.created)
+    }
+
     func testHandNamedRuleFileIsUpdatedAndDeletedInPlace() throws {
         let file = Paths.rules.appendingPathComponent("login-mock.json")
         try #"{"id":"abc","urlPattern":"https://login/*","status":401}"#.write(to: file, atomically: true, encoding: .utf8)
@@ -144,7 +162,7 @@ extension RuleTests {
         let encoded = String(decoding: try RuleStore.encoder.encode(MockRule(urlPattern: "https://a/*")), as: UTF8.self)
         XCTAssertFalse(encoded.contains("delayMs"), "no delay, no key")
         let delayed = try RuleStore.encoder.encode(MockRule(urlPattern: "https://a/*", delayMs: 1500))
-        XCTAssertEqual(try JSONDecoder().decode(MockRule.self, from: delayed).delayMs, 1500)
+        XCTAssertEqual(try RuleStore.decoder.decode(MockRule.self, from: delayed).delayMs, 1500)
     }
 }
 

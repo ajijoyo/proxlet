@@ -19,6 +19,8 @@ public struct ScriptMeta: Equatable, Sendable {
     public var method: String?
     public var onRequest = true
     public var onResponse = true
+    /// `@created`; nil for scripts written before this was recorded.
+    public var created: Date?
 
     public init() {}
 
@@ -53,6 +55,7 @@ public struct ScriptMeta: Equatable, Sendable {
             case "method": meta.method = value.isEmpty || value.uppercased() == "ANY" ? nil : value.uppercased()
             case "request": meta.onRequest = value != "false"
             case "response": meta.onResponse = value != "false"
+            case "created": meta.created = ISO8601DateFormatter().date(from: value)
             default: break
             }
         }
@@ -61,7 +64,7 @@ public struct ScriptMeta: Equatable, Sendable {
 
     /// Source with the metadata header followed by `code`.
     public func render(code: String) -> String {
-        [
+        ([
             "// @name \(name)",
             "// @enabled \(enabled)",
             "// @match \(match)",
@@ -69,6 +72,6 @@ public struct ScriptMeta: Equatable, Sendable {
             "// @method \(method ?? "ANY")",
             "// @request \(onRequest)",
             "// @response \(onResponse)",
-        ].joined(separator: "\n") + "\n" + code
+        ] + (created.map { ["// @created \(ISO8601DateFormatter().string(from: $0))"] } ?? [])).joined(separator: "\n") + "\n" + code
     }
 }
