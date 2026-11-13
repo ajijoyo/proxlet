@@ -56,3 +56,33 @@ func removeDevice(_ a: Args) throws -> String {
     access.remove([ip])
     return "Removed \(ip); it is asked again on its next connection"
 }
+
+/// Launches Proxlet.app in the background if needed and waits until its proxy listens.
+func openProxlet(_: Args) throws -> String {
+    if exitCode("/usr/bin/pgrep", ["-x", "Proxlet"]) == 0, SharedState.load().running {
+        return "Proxlet is already running on 127.0.0.1:\(SharedState.load().port)"
+    }
+    let start = Date()
+    guard exitCode("/usr/bin/open", ["-g", "-b", "com.git.proxlet"]) == 0 else {
+        throw ToolError(message: "Proxlet.app not found; install it with ./make-app.sh")
+    }
+    // A crashed app can leave running=true behind, so only trust a state.json written after launch.
+    for _ in 0..<60 {
+        let written = (try? SharedState.file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        let state = SharedState.load()
+        if state.running, let written, written >= start { return "Proxlet started on 127.0.0.1:\(state.port)" }
+        Thread.sleep(forTimeInterval: 0.25)
+    }
+    throw ToolError(message: "Proxlet opened but its proxy didn't start within 15 s; check the app (port in use?)")
+}
+
+private func exitCode(_ tool: String, _ args: [String]) -> Int32 {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: tool)
+    p.arguments = args
+    p.standardOutput = FileHandle.nullDevice
+    p.standardError = FileHandle.nullDevice
+    guard (try? p.run()) != nil else { return -1 }
+    p.waitUntilExit()
+    return p.terminationStatus
+}

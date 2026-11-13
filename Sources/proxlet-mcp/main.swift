@@ -340,7 +340,7 @@ func setSystemProxy(_ a: Args) throws -> String {
     guard let enabled = a.bool("enabled") else { throw ToolError(message: "Missing argument enabled") }
     let state = SharedState.load()
     // Pointing the Mac at a port nobody listens on would break all browsing.
-    if enabled, !state.running { throw ToolError(message: "Proxlet is not running; open the app first") }
+    if enabled, !state.running { throw ToolError(message: "Proxlet is not running; call open_proxlet first") }
     try SystemProxy.setEnabled(enabled, port: state.port)
     return "System proxy \(enabled ? "→ 127.0.0.1:\(state.port)" : "off")"
 }
@@ -362,7 +362,8 @@ let handlers: [String: (Args) throws -> String] = [
     "list_tool_status": listToolStatus, "enable_ssl_proxying": enableSSLProxying, "disable_ssl_proxying": disableSSLProxying,
     "get_ssl_proxying_list": getSSLProxyingList, "toggle_ssl_proxying_domain": toggleSSLProxyingDomain,
     "set_system_proxy": setSystemProxy, "get_system_proxy_status": getSystemProxyStatus,
-    "toggle_no_caching": toggleNoCaching, "get_certificate_status": getCertificateStatus, "get_version": getVersion, "get_access_control": getAccessControl,
+    "toggle_no_caching": toggleNoCaching, "get_certificate_status": getCertificateStatus, "get_version": getVersion, "open_proxlet": openProxlet,
+    "get_access_control": getAccessControl,
     "set_access_control_mode": setAccessControlMode, "allow_device": allowDevice, "remove_device": removeDevice,
 ]
 

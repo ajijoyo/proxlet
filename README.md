@@ -126,7 +126,7 @@ claude mcp add proxlet -- /Applications/Proxlet.app/Contents/MacOS/proxlet-mcp
 | Map Local / Scripts | `list_rules`, `create_map_local`, `create_map_local_from_flow`, `update_map_local`, `create_scripting_rule`, `update_scripting_rule`, `toggle_rule`, `delete_rule` |
 | SSL Proxying | `enable_ssl_proxying`, `disable_ssl_proxying`, `get_ssl_proxying_list`, `toggle_ssl_proxying_domain` |
 | Switches & status | `get_proxy_status`, `toggle_recording`, `toggle_tool`, `toggle_no_caching`, `list_tool_status`, `set_system_proxy`, `get_system_proxy_status` |
-| Setup | `get_certificate_status`, `get_version`, `get_access_control`, `set_access_control_mode`, `allow_device`, `remove_device` |
+| Setup | `open_proxlet`, `get_certificate_status`, `get_version`, `get_access_control`, `set_access_control_mode`, `allow_device`, `remove_device` |
 
 Example prompts: *"Show the last 4xx responses from api.example.com"*, *"Mock GET /v1/profile with a 500 and a 2-second delay"*, *"Mock GET /v1/profile only for the booted simulator"*, *"Enable SSL Proxying for \*.example.com"*.
 

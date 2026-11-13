@@ -39,7 +39,7 @@ public struct SharedState: Codable, Equatable, Sendable {
 
     public static let defaultPort = 9191
 
-    static var file: URL { Paths.root.appendingPathComponent("state.json") }
+    public static var file: URL { Paths.root.appendingPathComponent("state.json") }
 
     // Fractional seconds, so two clear_session calls within one second still compare unequal.
     static let encoder: JSONEncoder = {
