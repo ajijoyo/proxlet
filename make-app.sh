@@ -8,6 +8,9 @@ APP="build/Proxlet.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Proxlet .build/release/proxlet-mcp "$APP/Contents/MacOS/"
+# Record the real SDK version; some toolchains write the deployment target, which turns off the current macOS look.
+xcrun vtool -set-build-version macos 14.0 "$(xcrun --sdk macosx --show-sdk-version)" -replace \
+  -output "$APP/Contents/MacOS/Proxlet" "$APP/Contents/MacOS/Proxlet"
 
 # App icon from icon.jpg → AppIcon.icns (all sizes).
 ICONSET="build/AppIcon.iconset"
