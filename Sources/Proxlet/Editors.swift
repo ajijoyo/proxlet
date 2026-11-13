@@ -115,6 +115,9 @@ struct MapLocalEditor: View {
                 Text("Rule \(ruleID) no longer exists.").foregroundStyle(.secondary)
             } else {
                 FilePathRow(url: loaded.map(RuleStore.file(for:)) ?? RuleStore.file(ruleID))
+                if let devices = loaded?.devices, !devices.isEmpty {
+                    HStack { Text("Only for").foregroundStyle(.secondary); ForEach(devices, id: \.self) { DeviceBadge(id: $0) } }
+                }
                 MatchingRuleSection(name: $name, url: $url, method: $method, useRegex: $useRegex)
                 GroupBox("Map To") {
                     VStack(alignment: .leading, spacing: 6) {

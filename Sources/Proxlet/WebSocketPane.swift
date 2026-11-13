@@ -28,6 +28,7 @@ struct WebSocketPane: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(JSONFormatter.pretty(messages[i].text) ?? messages[i].text, forType: .string)
                     }
+                    .labelStyle(.iconOnly).help("Copy")
                 }
             }
             ResizableSplit(axis: .vertical, fraction: $split, minFirst: 80, minSecond: 80) {

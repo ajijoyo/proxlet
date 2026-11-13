@@ -35,6 +35,7 @@ struct DeviceBadge: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(id, forType: .string)
                     }
+                    .labelStyle(.iconOnly).help("Copy")
                 }
             }
             .padding(12)

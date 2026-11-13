@@ -82,6 +82,7 @@ struct DeviceCertView: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(downloadURL, forType: .string)
                     }
+                    .labelStyle(.iconOnly).help("Copy")
                 }
                 if !model.running {
                     Text("Proxlet is not running, the link will not work.").foregroundStyle(.red)

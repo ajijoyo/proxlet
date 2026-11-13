@@ -205,14 +205,14 @@ struct ScriptsView: View {
                     HStack {
                         Toggle("", isOn: Binding(get: { model.scriptMeta[name]?.enabled ?? true }, set: { model.setScriptEnabled(name, $0) }))
                             .labelsHidden()
-                        Image(systemName: "curlybraces")
                         let meta = model.scriptMeta[name]
+                        MethodBadge(method: meta?.method ?? "ANY").frame(width: 64, alignment: .leading)
+                        Image(systemName: "curlybraces")
                         VStack(alignment: .leading) {
                             Text(meta.map { $0.name.isEmpty ? name : $0.name } ?? name).fontWeight(.medium).lineLimit(1)
                             Text(meta.map { $0.match.isEmpty ? "All requests" : $0.match } ?? "")
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                         }
-                        if let m = meta { MethodBadge(method: m.method ?? "ANY") }
                         Spacer()
                         Button("Edit", systemImage: "pencil") { openWindow(id: "script", value: name) }
                         .labelStyle(.iconOnly)

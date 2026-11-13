@@ -42,10 +42,12 @@ struct FlowDetailView: View {
                 Button("Map Local", systemImage: "wand.and.stars") {
                     if let id = model.mock(flow) { openWindow(id: "mapLocal", value: id) }
                 }
+                .labelStyle(.iconOnly).help("Map Local")
                 .fixedSize()
                 Button("Add Script", systemImage: "curlybraces") {
                     if let name = model.addScript(for: flow.url, method: flow.method) { openWindow(id: "script", value: name) }
                 }
+                .labelStyle(.iconOnly).help("Add Script")
                 .fixedSize()
             }
             if let error = flow.error {
@@ -119,6 +121,7 @@ struct MessagePane: View {
                 .frame(maxWidth: 240)
                 Spacer()
                 Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") { copy() }
+                    .labelStyle(.iconOnly).help("Copy")
             }
             Group {
                 // Bodies and raw messages can be tens of KB; NSTextView lays them out far faster than SwiftUI Text.
