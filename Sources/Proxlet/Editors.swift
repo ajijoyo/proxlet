@@ -10,80 +10,6 @@ import ProxletCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Name / URL / method / match mode block shared by both editors, with a live "test your rule" field.
-struct MatchingRuleSection: View {
-    @Binding var name: String
-    @Binding var url: String
-    @Binding var method: String
-    @Binding var useRegex: Bool
-    @State private var testURL = ""
-
-    var body: some View {
-        GroupBox("Matching Rule") {
-            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
-                GridRow {
-                    Text("Name:").gridColumnAlignment(.trailing)
-                    TextField("Name", text: $name)
-                }
-                GridRow {
-                    Text("URL:")
-                    TextField(useRegex ? "^https://api\\.example\\.com/.*" : "https://api.example.com/users/*", text: $url)
-                        .font(.system(.body, design: .monospaced))
-                }
-                GridRow {
-                    Color.clear.frame(width: 1, height: 1)
-                    HStack {
-                        Picker("", selection: $method) { ForEach(MockRule.methods, id: \.self) { Text($0) } }
-                            .labelsHidden().frame(width: 110)
-                        Picker("", selection: $useRegex) {
-                            Text("Use Wildcard").tag(false)
-                            Text("Use Regex").tag(true)
-                        }
-                        .labelsHidden().frame(width: 140)
-                        Text(useRegex ? "Regex, matched anywhere in the URL." : "Wildcard * matches anything.")
-                            .foregroundStyle(.secondary).font(.caption)
-                    }
-                }
-                GridRow {
-                    Text("Test:")
-                    HStack {
-                        TextField("Paste a URL to test this rule", text: $testURL)
-                        if !testURL.isEmpty {
-                            let ok = !url.isEmpty && MockRule.url(testURL, matches: url, regex: useRegex)
-                            Label(ok ? "Match" : "No match", systemImage: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(ok ? .green : .red)
-                        }
-                    }
-                }
-            }
-            .padding(6)
-        }
-    }
-}
-
-/// Exact file backing the editor, so it's clear which rule or script is being edited.
-struct FilePathRow: View {
-    let url: URL
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "doc").foregroundStyle(.secondary)
-            Text(url.path)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-                .lineLimit(1)
-                .truncationMode(.head)
-                .help(url.path)
-            Button("Reveal in Finder", systemImage: "folder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .help("Reveal in Finder")
-            Spacer()
-        }
-        .foregroundStyle(.secondary)
-    }
-}
-
 // MARK: - Map Local
 
 struct MapLocalEditor: View {
@@ -97,6 +23,8 @@ struct MapLocalEditor: View {
     @State private var method = "ANY"
     @State private var useRegex = false
     @State private var enabled = true
+    @State private var specificDevices = false
+    @State private var deviceText = ""
     @State private var message = ""
     @State private var status = ""
     /// Served instead of the message body when set (any file: image, video, PDF…).
@@ -116,9 +44,10 @@ struct MapLocalEditor: View {
             } else {
                 FilePathRow(url: loaded.map(RuleStore.file(for:)) ?? RuleStore.file(ruleID))
                 if let devices = loaded?.devices, !devices.isEmpty {
-                    HStack { Text("Only for").foregroundStyle(.secondary); ForEach(devices, id: \.self) { DeviceBadge(id: $0) } }
+                    HStack { Text("Only for").foregroundStyle(.secondary); DeviceBadge(ids: devices) }
                 }
                 MatchingRuleSection(name: $name, url: $url, method: $method, useRegex: $useRegex)
+                DeviceTargetSection(specific: $specificDevices, text: $deviceText)
                 GroupBox("Map To") {
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle("Enable this rule", isOn: $enabled)
@@ -222,6 +151,8 @@ struct MapLocalEditor: View {
         method = rule.method ?? "ANY"
         useRegex = rule.useRegex
         enabled = rule.enabled
+        specificDevices = rule.isDeviceSpecific
+        deviceText = (rule.devices ?? []).joined(separator: ", ")
         bodyFile = rule.bodyFile
         textBody = rule.body
         let delay = rule.delayMs ?? 0
@@ -234,6 +165,12 @@ struct MapLocalEditor: View {
         guard var rule = loaded else { return }
         guard let parsed = HTTPMessageFormat.parse(message) else {
             status = "First line must look like: HTTP/1.1 200"
+            return
+        }
+        do {
+            rule.devices = try DeviceTargetSection.targets(specific: specificDevices, text: deviceText)
+        } catch {
+            status = "Save failed: \(error.localizedDescription)"
             return
         }
         rule.name = name
@@ -299,6 +236,8 @@ struct ScriptEditor: View {
     @State private var onRequest = true
     @State private var onResponse = true
     @State private var enabled = true
+    @State private var specificDevices = false
+    @State private var deviceText = ""
     @State private var code = ""
     @State private var status = ""
 
@@ -319,6 +258,7 @@ struct ScriptEditor: View {
             } else {
                 FilePathRow(url: file)
                 MatchingRuleSection(name: $name, url: $url, method: $method, useRegex: $useRegex)
+                DeviceTargetSection(specific: $specificDevices, text: $deviceText)
                 HStack {
                     Text("Run script on:")
                     Toggle("Request", isOn: $onRequest)
@@ -372,6 +312,8 @@ struct ScriptEditor: View {
         onRequest = meta.onRequest
         onResponse = meta.onResponse
         enabled = meta.enabled
+        specificDevices = meta.isDeviceSpecific
+        deviceText = (meta.devices ?? []).joined(separator: ", ")
         code = body
     }
 
@@ -385,6 +327,7 @@ struct ScriptEditor: View {
         meta.onResponse = onResponse
         meta.enabled = enabled
         do {
+            meta.devices = try DeviceTargetSection.targets(specific: specificDevices, text: deviceText)
             try meta.render(code: code).write(to: file, atomically: true, encoding: .utf8)
             model.reloadRules()
             dismiss()  // close the editor once saved

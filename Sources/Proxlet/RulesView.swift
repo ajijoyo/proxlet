@@ -69,7 +69,7 @@ struct MapLocalView: View {
                             Text(rule.urlPattern).lineLimit(1).truncationMode(.middle)
                                 .font(rule.name.isEmpty ? .body : .caption).foregroundStyle(rule.name.isEmpty ? .primary : .secondary)
                         }
-                        ForEach(rule.devices ?? [], id: \.self) { DeviceBadge(id: $0) }
+                        DeviceBadge(ids: rule.devices ?? [])
                         Spacer()
                         Button("Edit", systemImage: "pencil") { openWindow(id: "mapLocal", value: rule.id) }
                         .labelStyle(.iconOnly)
@@ -213,6 +213,7 @@ struct ScriptsView: View {
                             Text(meta.map { $0.match.isEmpty ? "All requests" : $0.match } ?? "")
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                         }
+                        DeviceBadge(ids: meta?.devices ?? [])
                         Spacer()
                         Button("Edit", systemImage: "pencil") { openWindow(id: "script", value: name) }
                         .labelStyle(.iconOnly)

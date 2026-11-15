@@ -31,7 +31,7 @@ let filterKeys = FlowQuery.keys
 let deviceIDsProp: Value = .object([
     "type": "array", "items": .object(["type": "string"]),
     "description": .string("Limit the rule to these clients: iOS simulator UDIDs (device_id from Maestro list_devices) or the IP of a "
-        + "phone on the network (as shown by get_access_control). A rule for the requesting client wins over a rule without "
+        + "phone on the network (as shown by get_access_control). A Map Local rule for the requesting client wins over a rule without "
         + "device_ids; [] removes the limit."),
 ])
 let matchings = FlowQuery.matchings
@@ -148,6 +148,7 @@ let tools: [Tool] = [
              "name": prop("string", "Script name shown in the app"),
              "method": choice(methods, "Request method to match (ANY by default)"),
              "use_regex": prop("boolean", "url is a regular expression (off by default)"),
+             "device_ids": deviceIDsProp,
              "enable_request": prop("boolean", "Run onRequest (on by default)"),
              "enable_response": prop("boolean", "Run onResponse (on by default)"),
              "include_paths": prop("boolean", "Also match everything below the URL (off by default)"),
@@ -160,6 +161,7 @@ let tools: [Tool] = [
              "url": prop("string", "New URL to match"),
              "method": choice(methods, "HTTP method"),
              "use_regex": prop("boolean", "url is a regular expression"),
+             "device_ids": deviceIDsProp,
              "enable_request": prop("boolean", "Run onRequest"),
              "enable_response": prop("boolean", "Run onResponse"),
              "script_content": prop("string", "New script code"),
