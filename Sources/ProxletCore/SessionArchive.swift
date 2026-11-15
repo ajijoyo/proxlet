@@ -31,7 +31,7 @@ public enum SessionArchive {
     }
 
     public static func importFile(_ url: URL) throws -> [Imported] {
-        guard url.pathExtension.lowercased() == "chls" else { return try decodeHAR(Data(contentsOf: url)) }
+        guard ["chls", "chlz"].contains(url.pathExtension.lowercased()) else { return try decodeHAR(Data(contentsOf: url)) }
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent("proxlet-\(UUID().uuidString).har")
         defer { try? FileManager.default.removeItem(at: temp) }
         try CharlesConverter.convert(url, to: temp)

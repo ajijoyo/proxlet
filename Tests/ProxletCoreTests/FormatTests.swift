@@ -53,6 +53,17 @@ final class FormatTests: ProxletTestCase {
         XCTAssertEqual(api.requestBody, #"{"name":"aji"}"#)
     }
 
+    func testCharlesZippedSessionImport() throws {
+        try XCTSkipIf(CharlesConverter.executable == nil, "Charles not installed")
+        let har = Paths.root.appendingPathComponent("session.har")
+        let url = Paths.root.appendingPathComponent("session.chlz")
+        try SessionArchive.export(sampleFlows(), to: har)
+        try CharlesConverter.convert(har, to: url)
+        let api = try XCTUnwrap(SessionArchive.importFile(url).first { $0.flow.method == "POST" }).flow
+        XCTAssertEqual(api.url, "https://api.example.com/users?x=1")
+        XCTAssertEqual(api.responseBody, #"{"id":7}"#)
+    }
+
     func testHTTPMessageRoundTripAndBeautify() throws {
         let text = HTTPMessageFormat.render(status: 201, headers: ["Content-Type": "application/json", "X-A": "1"], body: "{\"a\":1}\n\nmore")
         XCTAssertTrue(text.hasPrefix("HTTP/1.1 201 Created\n"))

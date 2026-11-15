@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 /// File › Import / Export Session (.chls for Charles, .har for other proxies and browsers).
 enum SessionFiles {
     static let chls = UTType(filenameExtension: "chls") ?? .data
+    static let chlz = UTType(filenameExtension: "chlz") ?? .data
     static let har = UTType(filenameExtension: "har") ?? .json
 
     @MainActor
@@ -37,7 +38,7 @@ enum SessionFiles {
     static func importSession(model: AppModel, openRule: @escaping (String) -> Void) {
         let panel = NSOpenPanel()
         panel.title = "Import Session or Map Local File"
-        panel.allowedContentTypes = [chls, har, .json, .plainText]
+        panel.allowedContentTypes = [chls, chlz, har, .json, .plainText]
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
         var sessions: [URL] = []
