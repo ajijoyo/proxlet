@@ -44,7 +44,7 @@ struct MapLocalEditor: View {
             } else {
                 FilePathRow(url: loaded.map(RuleStore.file(for:)) ?? RuleStore.file(ruleID))
                 if let devices = loaded?.devices, !devices.isEmpty {
-                    HStack { Text("Only for").foregroundStyle(.secondary); ForEach(devices, id: \.self) { DeviceBadge(id: $0) } }
+                    HStack { Text("Only for").foregroundStyle(.secondary); DeviceBadge(ids: devices) }
                 }
                 MatchingRuleSection(name: $name, url: $url, method: $method, useRegex: $useRegex)
                 DeviceTargetSection(specific: $specificDevices, text: $deviceText)

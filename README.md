@@ -79,12 +79,12 @@ Return a local response instead of calling the server.
 - URL patterns use `*` wildcards, or regex.
 - In the editor, choose **Global** for all matching clients or **Specific Devices** and enter simulator UUIDs or device IPs separated by commas. A rule for the requesting device wins over matching global rules. Network device IPs can change with DHCP.
 - MCP accepts `device_ids` when creating or updating rules: `[]` restores Global scope, and omitting the field on update preserves the current targets.
+- The rule list shows targets as one badge: the first device's name, plus `+N` for the rest. Hover to list them all, or click to copy each ID.
 
 ### Scripts
 JavaScript files that change requests and responses. Create one with right-click › **Add Script**, or **Scripts › New**.
 
 The editor offers the same **Global** or **Specific Devices** scope as Map Local. MCP scripting create/update tools accept `device_ids`; `list_rules` returns script targets in `devices`. Script files store targets as `// @devices UUID,IP`. Scripts without targets remain global. All matching scripts run in file-name order, including global scripts.
-
 
 ```js
 // @name Add header
