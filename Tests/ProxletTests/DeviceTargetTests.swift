@@ -3,7 +3,7 @@
 //  ProxletTests
 //
 //  Created by Aji on 15/11/26
-//  Copyright © 2026 Aji. Licensed under the MIT License.
+//  Copyright © 2026 Aji. Licensed under the GNU General Public License v3.0.
 //
 
 import XCTest

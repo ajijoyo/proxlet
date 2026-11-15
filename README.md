@@ -166,6 +166,6 @@ swift run Proxlet            # run without bundling
 
 ## License
 
-MIT © 2026 Aji. See [LICENSE](LICENSE).
+GPLv3 © 2026 Aji. See [LICENSE](LICENSE).
 
 Dependencies are fetched by Swift Package Manager under their own licenses (Apache-2.0 and MIT; BoringSSL inside swift-nio-ssl / swift-crypto). If you distribute a built `Proxlet.app`, include their notices.

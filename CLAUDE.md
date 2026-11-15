@@ -64,7 +64,7 @@ Upstream gotchas that caused real bugs:
 
 ## Conventions
 
-- New Swift files use the Xcode header crediting "Aji", with `//  Copyright © <yyyy> Aji. Licensed under the MIT License.` as the copyright line (this repo is MIT; it replaces the global "GIT. All rights reserved." line).
+- New Swift files use the Xcode header crediting "Aji", with `//  Copyright © <yyyy> Aji. Licensed under the GNU General Public License v3.0.` as the copyright line (this repo is GPLv3; it replaces the global "GIT. All rights reserved." line).
 - UI colors for JSON/HTTP/JS come from `Theme` in `Syntax.swift`. Every palette key is required; a `theme.json` that doesn't decode uses `Theme.default`. Adding a key later makes existing custom themes fall back, so ship that with its own migration.
 - Delete actions go through `AppModel.confirm(...)` with "Delete" wording; sidebar flow deletes use `AppModel.confirmDeleteFlows`.
 - SwiftLint's default limits (400 lines per file, 250 per type body) apply: split into a new file or extension (as done for `AppModel+*.swift`, `SSLProxyingTools.swift`) rather than raising limits.
