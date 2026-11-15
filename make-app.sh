@@ -45,5 +45,7 @@ EOF
 codesign --force --deep --sign - "$APP"
 rm -rf /Applications/Proxlet.app
 cp -R "$APP" /Applications/
+rm -rf "$APP" "$ICONSET" build/AppIcon.png
+rmdir build 2>/dev/null || true
 echo "Installed /Applications/Proxlet.app"
 echo "MCP: claude mcp add proxlet -- /Applications/Proxlet.app/Contents/MacOS/proxlet-mcp"
