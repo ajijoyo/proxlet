@@ -82,4 +82,3 @@ struct FilePathRow: View {
         .foregroundStyle(.secondary)
     }
 }
-

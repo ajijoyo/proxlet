@@ -52,20 +52,24 @@ public struct ScriptMeta: Equatable, Sendable {
             let body = line.dropFirst(4)
             let key = body.prefix { !$0.isWhitespace }
             let value = body.dropFirst(key.count).trimmingCharacters(in: .whitespaces)
-            switch key {
-            case "name": meta.name = value
-            case "enabled": meta.enabled = value != "false"
-            case "match": meta.match = value
-            case "regex": meta.useRegex = value == "true"
-            case "method": meta.method = value.isEmpty || value.uppercased() == "ANY" ? nil : value.uppercased()
-            case "request": meta.onRequest = value != "false"
-            case "response": meta.onResponse = value != "false"
-            case "devices": meta.devices = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-            case "created": meta.created = ISO8601DateFormatter().date(from: value)
-            default: break
-            }
+            meta.set(key, value)
         }
         return (meta, lines.joined(separator: "\n"))
+    }
+
+    private mutating func set(_ key: Substring, _ value: String) {
+        switch key {
+        case "name": name = value
+        case "enabled": enabled = value != "false"
+        case "match": match = value
+        case "regex": useRegex = value == "true"
+        case "method": method = value.isEmpty || value.uppercased() == "ANY" ? nil : value.uppercased()
+        case "request": onRequest = value != "false"
+        case "response": onResponse = value != "false"
+        case "devices": devices = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        case "created": created = ISO8601DateFormatter().date(from: value)
+        default: break
+        }
     }
 
     /// Source with the metadata header followed by `code`.
@@ -78,6 +82,9 @@ public struct ScriptMeta: Equatable, Sendable {
             "// @method \(method ?? "ANY")",
             "// @request \(onRequest)",
             "// @response \(onResponse)",
-        ] + (isDeviceSpecific ? ["// @devices \((devices ?? []).joined(separator: ","))"] : []) + (created.map { ["// @created \(ISO8601DateFormatter().string(from: $0))"] } ?? [])).joined(separator: "\n") + "\n" + code
+        ]
+            + (isDeviceSpecific ? ["// @devices \((devices ?? []).joined(separator: ","))"] : [])
+            + (created.map { ["// @created \(ISO8601DateFormatter().string(from: $0))"] } ?? [])
+        ).joined(separator: "\n") + "\n" + code
     }
 }
