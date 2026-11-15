@@ -164,7 +164,7 @@ func listRules(_ a: Args) throws -> String {
         rules += ScriptStore.list().map { s in
             ["id": s.id, "type": "scripting", "name": s.meta.name, "url": s.meta.match, "method": s.meta.method ?? "ANY",
              "isEnabled": s.meta.enabled, "isRegex": s.meta.useRegex,
-             "enable_request": s.meta.onRequest, "enable_response": s.meta.onResponse]
+             "enable_request": s.meta.onRequest, "enable_response": s.meta.onResponse, "devices": s.meta.devices ?? []]
         }
     }
     return try json(any: ["count": rules.count, "rules": rules])
@@ -251,6 +251,7 @@ func createScriptingRule(_ a: Args) throws -> String {
     meta.method = a.method("method") ?? nil
     meta.onRequest = a.bool("enable_request") ?? true
     meta.onResponse = a.bool("enable_response") ?? true
+    meta.devices = try deviceIDs(a) ?? nil
     var used = Set(ScriptStore.fileNames())
     let file = try ScriptStore.create(fileName: ScriptStore.uniqueFileName(for: meta.name, used: &used),
                                       meta: meta, code: try a.required("script_content"))
@@ -267,6 +268,7 @@ func updateScriptingRule(_ a: Args) throws -> String {
     if let r = a.bool("use_regex") { meta.useRegex = r }
     if let r = a.bool("enable_request") { meta.onRequest = r }
     if let r = a.bool("enable_response") { meta.onResponse = r }
+    if let d = try deviceIDs(a) { meta.devices = d }
     if let c = a.str("script_content") { code = c }
     try meta.render(code: code).write(to: url, atomically: true, encoding: .utf8)
     return "Updated \(url.lastPathComponent)"

@@ -91,7 +91,7 @@ public final class FlowPipeline: @unchecked Sendable {
             return res
         }
         // When a script applies, skip the browser cache both ways so toggling scripts takes effect on the next request.
-        let useScripts = scriptsEnabled && scripts.hasMatch(method: original.method, url: original.url)
+        let useScripts = scriptsEnabled && scripts.hasMatch(method: original.method, url: original.url, device: original.clientDevice)
         var outgoing = original
         // Scripted traffic is always fresh, so toggling a script shows on the next request; No Caching does it for the rest.
         let fresh = useScripts || noCachingEnabled

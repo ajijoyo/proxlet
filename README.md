@@ -77,10 +77,14 @@ Return a local response instead of calling the server.
 - **Select Binary File…** serves any file as the body (Content-Type from the extension when no header is set). **Remove Binary File** brings the text body back.
 - **Delay**: Immediately, 1–3 seconds, or a custom value in milliseconds.
 - URL patterns use `*` wildcards, or regex.
-- A rule can be limited to specific devices: an iOS simulator by UDID, or a phone by its IP. A rule for the requesting device wins over rules without devices. Set devices through MCP (`device_ids`); the rule list shows them as badges.
+- In the editor, choose **Global** for all matching clients or **Specific Devices** and enter simulator UUIDs or device IPs separated by commas. A rule for the requesting device wins over matching global rules. Network device IPs can change with DHCP.
+- MCP accepts `device_ids` when creating or updating rules: `[]` restores Global scope, and omitting the field on update preserves the current targets.
 
 ### Scripts
 JavaScript files that change requests and responses. Create one with right-click › **Add Script**, or **Scripts › New**.
+
+The editor offers the same **Global** or **Specific Devices** scope as Map Local. MCP scripting create/update tools accept `device_ids`; `list_rules` returns script targets in `devices`. Script files store targets as `// @devices UUID,IP`. Scripts without targets remain global. All matching scripts run in file-name order, including global scripts.
+
 
 ```js
 // @name Add header

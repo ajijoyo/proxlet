@@ -213,6 +213,7 @@ struct ScriptsView: View {
                             Text(meta.map { $0.match.isEmpty ? "All requests" : $0.match } ?? "")
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                         }
+                        ForEach(meta?.devices ?? [], id: \.self) { DeviceBadge(id: $0) }
                         Spacer()
                         Button("Edit", systemImage: "pencil") { openWindow(id: "script", value: name) }
                         .labelStyle(.iconOnly)

@@ -73,9 +73,9 @@ public final class ScriptEngine: @unchecked Sendable {
     """
 
     /// Whether any script would run for this request (on either phase).
-    public func hasMatch(method: String, url: String) -> Bool {
+    public func hasMatch(method: String, url: String, device: String? = nil) -> Bool {
         contexts().contains { _, loaded in
-            (loaded.meta.onRequest || loaded.meta.onResponse) && loaded.meta.matches(method: method, url: url)
+            (loaded.meta.onRequest || loaded.meta.onResponse) && loaded.meta.matches(method: method, url: url, device: device)
         }
     }
 
@@ -83,7 +83,7 @@ public final class ScriptEngine: @unchecked Sendable {
         var out = req
         var errors: [String] = []
         var applied: [String] = []
-        for (name, loaded) in contexts() where loaded.meta.onRequest && loaded.meta.matches(method: out.method, url: out.url) {
+        for (name, loaded) in contexts() where loaded.meta.onRequest && loaded.meta.matches(method: out.method, url: out.url, device: req.clientDevice) {
             do {
                 guard let json = try run(loaded, "onRequest", Self.encode(req: out)) else { continue }
                 Self.apply(json, to: &out)
@@ -99,7 +99,7 @@ public final class ScriptEngine: @unchecked Sendable {
         var out = res
         var errors: [String] = []
         var applied: [String] = []
-        for (name, loaded) in contexts() where loaded.meta.onResponse && loaded.meta.matches(method: req.method, url: req.url) {
+        for (name, loaded) in contexts() where loaded.meta.onResponse && loaded.meta.matches(method: req.method, url: req.url, device: req.clientDevice) {
             do {
                 guard let json = try run(loaded, "onResponse", Self.encode(req: req), Self.encode(res: out)) else { continue }
                 Self.apply(json, to: &out)

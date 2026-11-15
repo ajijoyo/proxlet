@@ -19,6 +19,8 @@ public struct ScriptMeta: Equatable, Sendable {
     public var method: String?
     public var onRequest = true
     public var onResponse = true
+    public var devices: [String]?
+    public var isDeviceSpecific: Bool { !(devices ?? []).isEmpty }
     /// `@created`; nil for scripts written before this was recorded.
     public var created: Date?
 
@@ -32,8 +34,11 @@ public struct ScriptMeta: Equatable, Sendable {
         try updated.render(code: code).write(to: file, atomically: true, encoding: .utf8)
     }
 
-    public func matches(method: String, url: String) -> Bool {
+    public func matches(method: String, url: String, device: String? = nil) -> Bool {
         guard enabled else { return false }
+        if isDeviceSpecific {
+            guard let device, devices?.contains(where: { $0.caseInsensitiveCompare(device) == .orderedSame }) == true else { return false }
+        }
         if let m = self.method, m.uppercased() != method.uppercased() { return false }
         return match.isEmpty || MockRule.url(url, matches: match, regex: useRegex)
     }
@@ -55,6 +60,7 @@ public struct ScriptMeta: Equatable, Sendable {
             case "method": meta.method = value.isEmpty || value.uppercased() == "ANY" ? nil : value.uppercased()
             case "request": meta.onRequest = value != "false"
             case "response": meta.onResponse = value != "false"
+            case "devices": meta.devices = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
             case "created": meta.created = ISO8601DateFormatter().date(from: value)
             default: break
             }
@@ -72,6 +78,6 @@ public struct ScriptMeta: Equatable, Sendable {
             "// @method \(method ?? "ANY")",
             "// @request \(onRequest)",
             "// @response \(onResponse)",
-        ] + (created.map { ["// @created \(ISO8601DateFormatter().string(from: $0))"] } ?? [])).joined(separator: "\n") + "\n" + code
+        ] + (isDeviceSpecific ? ["// @devices \((devices ?? []).joined(separator: ","))"] : []) + (created.map { ["// @created \(ISO8601DateFormatter().string(from: $0))"] } ?? [])).joined(separator: "\n") + "\n" + code
     }
 }
