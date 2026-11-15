@@ -11,20 +11,22 @@ import ProxletCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// File › Import / Export Session (.chls for Charles, .har for other proxies and browsers).
+/// File › Import / Export Session (.chls for Charles, .har for other proxies and browsers), format picked from the menu.
 enum SessionFiles {
     static let chls = UTType(filenameExtension: "chls") ?? .data
     static let chlz = UTType(filenameExtension: "chlz") ?? .data
     static let har = UTType(filenameExtension: "har") ?? .json
 
     @MainActor
-    static func export(_ flows: [Flow], model: AppModel) {
+    static func export(_ flows: [Flow], as type: UTType, model: AppModel) {
         guard !flows.isEmpty else { return model.alert("No flows to export.") }
         let panel = NSSavePanel()
         panel.title = "Export \(flows.count) Flows"
-        panel.allowedContentTypes = [chls, har]
-        panel.nameFieldStringValue = "Proxlet Session.chls"
-        panel.message = ".chls opens in Charles and Proxyman (needs Charles installed to write). .har opens in Proxyman, Charles and browsers."
+        panel.allowedContentTypes = [type]
+        panel.nameFieldStringValue = "Proxlet Session.\(type == chls ? "chls" : "har")"
+        panel.message = type == chls
+            ? ".chls opens in Charles and Proxyman (needs Charles installed to write)."
+            : ".har opens in Proxyman, Charles and browsers."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task.detached {
             do { try SessionArchive.export(flows, to: url) } catch {
@@ -106,7 +108,10 @@ struct SessionMenu: View {
     var body: some View {
         Button("Import…") { SessionFiles.importSession(model: model) { openWindow(id: "mapLocal", value: $0) } }
             .keyboardShortcut("o", modifiers: .command)
-        Button("Export Session…") { SessionFiles.export(model.flows, model: model) }
-            .keyboardShortcut("e", modifiers: [.command, .shift])
+        Menu("Export Session") {
+            Button("Charles Session (.chls)…") { SessionFiles.export(model.flows, as: SessionFiles.chls, model: model) }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+            Button("HAR (.har)…") { SessionFiles.export(model.flows, as: SessionFiles.har, model: model) }
+        }
     }
 }
