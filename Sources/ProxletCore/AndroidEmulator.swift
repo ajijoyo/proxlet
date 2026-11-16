@@ -12,6 +12,9 @@ import Foundation
 public enum AndroidEmulator {
     public static let hostAlias = "10.0.2.2"
     public static let deviceCertPath = "/sdcard/Download/Proxlet-CA.crt"
+    /// Device ID for all emulators: their traffic leaves through one shared `netsimd`, so they can't be told apart.
+    public static let deviceID = "android-emulator"
+    public static let deviceName = "Android Emulator"
 
     /// Apps launched from Finder get a minimal PATH, so look in the usual SDK locations.
     public static func adbPath() -> String? {

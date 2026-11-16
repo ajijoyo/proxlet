@@ -140,6 +140,8 @@ final class SystemTests: ProxletTestCase {
         XCTAssertEqual(ProcessLookup.appName(executablePath: app), "mamikos")
         XCTAssertNil(ProcessLookup.simulatorDevice(executablePath: "/Applications/Slack.app/Contents/MacOS/Slack"))
         XCTAssertNil(ProcessLookup.simulatorDevice(executablePath: "/x/CoreSimulator/Devices/not-a-uuid/a.app/a"))
+        XCTAssertEqual(ProcessLookup.simulatorDevice(executablePath: "/Users/me/Library/Android/sdk/emulator/netsimd"), "android-emulator")
+        XCTAssertEqual(ProcessLookup.deviceName("android-emulator"), "Android Emulator")
 
         let root = Paths.root.appendingPathComponent("sims")
         let udid = "C9842430-4593-46AF-AB67-9225FD361042"

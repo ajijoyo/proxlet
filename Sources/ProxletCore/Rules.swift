@@ -130,6 +130,7 @@ public struct MockRule: Codable, Identifiable, Hashable, Sendable {
         return try ids.map { raw in
             let id = raw.trimmingCharacters(in: .whitespaces)
             if UUID(uuidString: id) != nil { return id.uppercased() }
+            if id.lowercased() == AndroidEmulator.deviceID { return AndroidEmulator.deviceID }
             guard AccessControl.isIP(id) else { throw InvalidDevice(id: raw) }
             return id
         }

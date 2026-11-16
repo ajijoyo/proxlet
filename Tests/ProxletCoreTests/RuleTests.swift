@@ -62,6 +62,7 @@ final class RuleTests: ProxletTestCase {
         XCTAssertNil(try MockRule.devices([]))
         XCTAssertEqual(try MockRule.devices([simA.lowercased()]), [simA])
         XCTAssertThrowsError(try MockRule.devices(["abc"]))
+        XCTAssertEqual(try MockRule.devices(["Android-Emulator"]), ["android-emulator"])
 
         // "a-general" sorts before "b-sim", so only the device preference can pick the device rule.
         try RuleStore.save(MockRule(id: "a-general", urlPattern: "https://x/latest*", status: 200))

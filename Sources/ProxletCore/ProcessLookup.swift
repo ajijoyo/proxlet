@@ -102,11 +102,17 @@ public enum ProcessLookup {
         return String(cString: buffer)
     }
 
-    /// UDID from `.../CoreSimulator/Devices/<UDID>/...`, uppercased; nil outside a simulator.
+    /// UDID from `.../CoreSimulator/Devices/<UDID>/...` (uppercased), `android-emulator` for the emulator's netsimd, else nil.
     static func simulatorDevice(executablePath path: String) -> String? {
+        if path.hasSuffix("/emulator/netsimd") { return AndroidEmulator.deviceID }
         guard let range = path.range(of: "/CoreSimulator/Devices/") else { return nil }
         let udid = path[range.upperBound...].prefix { $0 != "/" }
         return UUID(uuidString: String(udid)) != nil ? udid.uppercased() : nil
+    }
+
+    /// Display name of a non-IP device ID: "Android Emulator" or the simulator's name.
+    public static func deviceName(_ id: String) -> String? {
+        id == AndroidEmulator.deviceID ? AndroidEmulator.deviceName : simulatorName(udid: id)
     }
 
     /// Simulator name from its `device.plist` (e.g. "iPhone 17"), cached; nil when the simulator is gone.

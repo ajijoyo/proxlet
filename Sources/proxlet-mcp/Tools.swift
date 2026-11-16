@@ -30,8 +30,9 @@ let toolNames = ["map_local", "scripting", "no_caching"]
 let filterKeys = FlowQuery.keys
 let deviceIDsProp: Value = .object([
     "type": "array", "items": .object(["type": "string"]),
-    "description": .string("Limit the rule to these clients: iOS simulator UDIDs (device_id from Maestro list_devices) or the IP of a "
-        + "phone on the network (as shown by get_access_control). A Map Local rule for the requesting client wins over a rule without "
+    "description": .string("Limit the rule to these clients: iOS simulator UDIDs (device_id from Maestro list_devices), android-emulator "
+        + "(every Android emulator), or the IP of a phone on the network (as shown by get_access_control). "
+        + "A Map Local rule for the requesting client wins over a rule without "
         + "device_ids; [] removes the limit."),
 ])
 let matchings = FlowQuery.matchings

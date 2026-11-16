@@ -15,7 +15,7 @@ struct DeviceBadge: View {
     @State private var showsIDs = false
 
     private static func name(_ id: String) -> String? {
-        AccessControl.isIP(id) ? nil : ProcessLookup.simulatorName(udid: id)
+        AccessControl.isIP(id) ? nil : ProcessLookup.deviceName(id)
     }
 
     private static func short(_ id: String) -> String {

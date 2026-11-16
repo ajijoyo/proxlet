@@ -61,7 +61,7 @@ func findRule(_ id: String) throws -> MockRule {
 func summary(_ f: Flow) -> [String: Any] {
     ["id": f.id, "method": f.method, "url": f.url, "status": f.status, "duration_ms": f.durationMs,
      "started_at": ISO8601DateFormatter().string(from: f.startedAt), "client": f.app, "websocket": f.websocket,
-     "device": f.device ?? "", "device_name": f.device.flatMap { ProcessLookup.simulatorName(udid: $0) } ?? "",
+     "device": f.device ?? "", "device_name": f.device.flatMap { ProcessLookup.deviceName($0) } ?? "",
      "map_local": f.mocked, "scripts": f.scripts]
 }
 

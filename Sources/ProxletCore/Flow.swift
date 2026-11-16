@@ -79,7 +79,7 @@ public struct Flow: Codable, Identifiable, Hashable, Sendable {
     public private(set) var pathSegments: [String] = []
     /// Client app: the local process's .app when known, else guessed from User-Agent.
     public private(set) var app = "Unknown"
-    /// iOS simulator UDID of the client, when known.
+    /// Client device when known: iOS simulator UDID, `android-emulator`, or a network client's IP.
     public private(set) var device: String?
 
     enum CodingKeys: String, CodingKey {

@@ -22,7 +22,7 @@ struct DeviceTargetSection: View {
     }
 
     private struct TargetError: LocalizedError {
-        var errorDescription: String? { "Enter at least one simulator UUID or device IP address." }
+        var errorDescription: String? { "Enter at least one simulator UUID, android-emulator, or device IP address." }
     }
 
     var body: some View {
@@ -34,7 +34,7 @@ struct DeviceTargetSection: View {
                 }
                 .pickerStyle(.segmented)
                 if specific {
-                    TextField("Simulator UUID or device IP, separated by commas", text: $text)
+                    TextField("Simulator UUID, android-emulator or device IP, separated by commas", text: $text)
                         .font(.system(.body, design: .monospaced))
                 } else {
                     Text("Applies to all clients matching this rule.").font(.caption).foregroundStyle(.secondary)
