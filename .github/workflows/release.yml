@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (for example, v0.1.5)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,16 +17,19 @@ permissions:
 jobs:
   release:
     runs-on: macos-15
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
         with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
           fetch-depth: 0
 
       - name: Verify tag version
         run: |
           VERSION=$(sed -nE 's/.*appVersion = "([^"]+)".*/\1/p' Sources/ProxletCore/Paths.swift)
-          test "v$VERSION" = "$GITHUB_REF_NAME"
+          test "v$VERSION" = "$RELEASE_TAG"
 
       - name: Run tests
         run: swift test
@@ -30,10 +39,14 @@ jobs:
 
       - name: Create DMG
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=${RELEASE_TAG#v}
           STAGING="$RUNNER_TEMP/Proxlet"
-          mkdir -p "$STAGING"
-          cp -R build/Proxlet.app "$STAGING/"
+          mkdir -p "$STAGING" build
+          APP=build/Proxlet.app
+          if [[ ! -d "$APP" ]]; then
+            APP=/Applications/Proxlet.app
+          fi
+          cp -R "$APP" "$STAGING/"
           ln -s /Applications "$STAGING/Applications"
           hdiutil create -volname "Proxlet $VERSION" -srcfolder "$STAGING" \
             -ov -format UDZO "build/Proxlet-$VERSION.dmg"
@@ -42,6 +55,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          gh release create "$GITHUB_REF_NAME" "build/Proxlet-$VERSION.dmg" \
-            --title "Proxlet $VERSION" --generate-notes
+          VERSION=${RELEASE_TAG#v}
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "build/Proxlet-$VERSION.dmg" --clobber
+          else
+            gh release create "$RELEASE_TAG" "build/Proxlet-$VERSION.dmg" \
+              --verify-tag --title "Proxlet $VERSION" --generate-notes
+          fi
