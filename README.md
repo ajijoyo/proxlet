@@ -16,8 +16,12 @@ Requires macOS 14 or later and Xcode / Swift 6 toolchain to build.
 
 ## Install
 
+Download the latest `Proxlet-<version>.dmg` from [Releases](https://github.com/ajijoyo/proxlet/releases), open it, and drag Proxlet to Applications. The app is not notarized, so macOS may require approval in Privacy & Security the first time it opens.
+
+To build from source instead:
+
 ```bash
-git clone git@github.com:ajijoyo/proxlet.git
+git clone https://github.com/ajijoyo/proxlet.git
 cd proxlet
 ./make-app.sh                     # release build → /Applications/Proxlet.app
 open /Applications/Proxlet.app

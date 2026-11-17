@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag version
+        run: |
+          VERSION=$(sed -nE 's/.*appVersion = "([^"]+)".*/\1/p' Sources/ProxletCore/Paths.swift)
+          test "v$VERSION" = "$GITHUB_REF_NAME"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build app
+        run: INSTALL_APP=false ./make-app.sh
+
+      - name: Create DMG
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          STAGING="$RUNNER_TEMP/Proxlet"
+          mkdir -p "$STAGING"
+          cp -R build/Proxlet.app "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname "Proxlet $VERSION" -srcfolder "$STAGING" \
+            -ov -format UDZO "build/Proxlet-$VERSION.dmg"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          gh release create "$GITHUB_REF_NAME" "build/Proxlet-$VERSION.dmg" \
+            --title "Proxlet $VERSION" --generate-notes

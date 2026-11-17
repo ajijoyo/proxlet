@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Proxlet.app (with proxlet-mcp inside) and installs it to /Applications.
+# Builds Proxlet.app (with proxlet-mcp inside); installs unless INSTALL_APP=false.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -43,9 +43,11 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </plist>
 EOF
 codesign --force --deep --sign - "$APP"
-rm -rf /Applications/Proxlet.app
-cp -R "$APP" /Applications/
-rm -rf "$APP" "$ICONSET" build/AppIcon.png
-rmdir build 2>/dev/null || true
-echo "Installed /Applications/Proxlet.app"
-echo "MCP: claude mcp add proxlet -- /Applications/Proxlet.app/Contents/MacOS/proxlet-mcp"
+if [[ "${INSTALL_APP:-true}" == "true" ]]; then
+  rm -rf /Applications/Proxlet.app
+  cp -R "$APP" /Applications/
+  echo "Installed /Applications/Proxlet.app"
+  echo "MCP: claude mcp add proxlet -- /Applications/Proxlet.app/Contents/MacOS/proxlet-mcp"
+fi
+rm -rf "$ICONSET" build/AppIcon.png
+echo "Built $APP"
